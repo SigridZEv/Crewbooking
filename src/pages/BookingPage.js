@@ -423,7 +423,7 @@ const s = {
   crewInfo:{display:'flex',alignItems:'center',gap:8,cursor:'pointer'},
   avatar:{width:30,height:30,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:500,flexShrink:0},
   crewName:{fontSize:13,fontWeight:500,color:'#1a1a18'},
-  dayCell:{padding:'6px 4px',textAlign:'center',borderBottom:'0.5px solid #e0dfd8',borderLeft:'0.5px solid #e0dfd8',minWidth:80},
+  dayCell:{padding:'6px 4px',textAlign:'center',borderBottom:'0.5px solid #e0dfd8',borderLeft:'0.5px solid #e0dfd8',minWidth:150},
   pill:{display:'inline-flex',alignItems:'center',justifyContent:'center',width:32,height:32,borderRadius:'50%',fontSize:11,cursor:'pointer',fontWeight:500,border:'none',fontFamily:'inherit'},
   projectLabel:{fontSize:10,color:'#555',maxWidth:74,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',lineHeight:1.3,marginTop:2},
   crewGrid:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:12},
