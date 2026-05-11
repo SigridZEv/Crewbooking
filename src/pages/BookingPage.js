@@ -299,18 +299,31 @@ export default function BookingPage({ user }) {
 
   const rangeDates = getDatesInRange(filterFrom, filterTo)
 
-  const filteredCal = crew.filter(c => {
+  const filteredCalBase = crew.filter(c => {
     if (searchCal && !c.name.toLowerCase().includes(searchCal.toLowerCase())) return false
-    if (filterAvail && filterFrom && filterTo && rangeDates.length > 0) {
-      const allMatch = rangeDates.every(date => getStatus(c.id, date) === filterAvail)
-      if (!allMatch) return false
-    } else if (filterAvail && filterDay) {
-      if (getStatus(c.id, filterDay) !== filterAvail) return false
-    } else if (filterAvail) {
-      if (!days.some(d => getStatus(c.id, dk(d)) === filterAvail)) return false
+    if (!filterFrom || !filterTo || rangeDates.length === 0) {
+      if (filterAvail && filterDay) {
+        if (getStatus(c.id, filterDay) !== filterAvail) return false
+      } else if (filterAvail) {
+        if (!days.some(d => getStatus(c.id, dk(d)) === filterAvail)) return false
+      }
     }
     return true
   })
+
+  // Sort by free days in period (most free days first) when period filter is active
+  const filteredCal = filterFrom && filterTo && rangeDates.length > 0
+    ? [...filteredCalBase].sort((a, b) => {
+        const aFree = rangeDates.filter(date => getStatus(a.id, date) === 'free').length
+        const bFree = rangeDates.filter(date => getStatus(b.id, date) === 'free').length
+        return bFree - aFree
+      })
+    : filteredCalBase
+
+  // Count for badge
+  const periodFreeCounts = filterFrom && filterTo && rangeDates.length > 0
+    ? Object.fromEntries(filteredCal.map(c => [c.id, rangeDates.filter(date => getStatus(c.id, date) === 'free').length]))
+    : {}
 
   const filteredCrew = crew.filter(c => {
     if (!searchCrew) return true
@@ -352,9 +365,9 @@ export default function BookingPage({ user }) {
             <input style={s.dateInput} type="date" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} />
             <span style={{fontSize:12,color:'#888'}}>til</span>
             <input style={s.dateInput} type="date" value={filterTo} onChange={e => setFilterTo(e.target.value)} />
-            {filterFrom && filterTo && filterAvail && (
+            {filterFrom && filterTo && rangeDates.length > 0 && (
               <span style={s.filterBadge}>
-                {filteredCal.length} {STATUS[filterAvail] ? STATUS[filterAvail].full.toLowerCase() : ''} i perioden
+                {filteredCal.length} crew — sortert etter ledige dager
               </span>
             )}
             {filterFrom && filterTo && !filterAvail && (
@@ -364,6 +377,11 @@ export default function BookingPage({ user }) {
           {filterAvail && filterDay && !filterFrom && (
             <div style={s.filterInfo}>
               Viser crew med status <strong>{STATUS[filterAvail].full}</strong> pa {days.find(d => dk(d) === filterDay) ? fmtDay(days.find(d => dk(d) === filterDay)) : filterDay} - {filteredCal.length} person(er)
+            </div>
+          )}
+          {filterFrom && filterTo && rangeDates.length > 0 && (
+            <div style={s.filterInfo}>
+              Periode: <strong>{new Date(filterFrom).toLocaleDateString('nb-NO')} - {new Date(filterTo).toLocaleDateString('nb-NO')}</strong> ({rangeDates.length} dager) — sortert etter flest ledige dager
             </div>
           )}
           <div style={s.weekNav}>
@@ -388,7 +406,14 @@ export default function BookingPage({ user }) {
                     <td style={s.crewCell}>
                       <div style={s.crewInfo} onClick={() => openProfile(c)}>
                         <div style={{...s.avatar,background:col.bg,color:col.text}}>{c.initials}</div>
-                        <span style={s.crewName}>{c.name}</span>
+                        <div>
+                          <span style={s.crewName}>{c.name}</span>
+                          {filterFrom && filterTo && rangeDates.length > 0 && (
+                            <div style={{fontSize:10,color:'#0F6E56',marginTop:1}}>
+                              {periodFreeCounts[c.id] || 0} av {rangeDates.length} dager ledig
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </td>
                     {days.map(d => {
@@ -397,7 +422,13 @@ export default function BookingPage({ user }) {
                       const cfg = STATUS[st]
                       const booking = getBooking(c.id, date)
                       const isHighlighted = filterDay === date
-                      return <td key={date} style={{...s.dayCell, background: isHighlighted?'#f0f7ff':undefined}}>
+                      const isInRange = filterFrom && filterTo && date >= filterFrom && date <= filterTo
+                      const isFreeInRange = isInRange && st === 'free'
+                      return <td key={date} style={{
+                        ...s.dayCell,
+                        background: isFreeInRange ? '#E8F8F0' : isHighlighted ? '#f0f7ff' : undefined,
+                        borderTop: isFreeInRange ? '2px solid #1D9E75' : undefined
+                      }}>
                         <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
                           <button style={{...s.pill,background:cfg.bg,color:cfg.c}}
                             title={booking && booking.project ? cfg.full + ' - ' + booking.project : cfg.full}
