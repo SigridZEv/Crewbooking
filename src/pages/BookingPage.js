@@ -98,7 +98,7 @@ function ProjectCard({ p, crew }) {
 
 export default function BookingPage({ user }) {
   const [view, setView] = useState('cal')
-  const [myProjects, setMyProjects] = useState({})
+  const [myProjects, setMyProjects] = useState([])
   const [crew, setCrew] = useState([])
   const [bookings, setBookings] = useState({})
   const [weekOffset, setWeekOffset] = useState(0)
@@ -730,49 +730,6 @@ export default function BookingPage({ user }) {
       )}
 
       {/* Mine prosjekter view */}
-      {view === 'mine' && (
-        <div>
-          {Object.keys(myProjects).length === 0 ? (
-            <div style={s.empty}>Du har ikke booket noen crew ennå. Bookinger du gjør vil vises her.</div>
-          ) : (
-            Object.entries(myProjects).map(([project, bookings]) => {
-              const crewIds = [...new Set(bookings.map(b => b.crew_id))]
-              const crewMembers = crewIds.map(id => crew.find(c => c.id === id)).filter(Boolean)
-              const dates = [...new Set(bookings.map(b => b.date))].sort()
-              const allergies = crewMembers
-                .map(c => (c.skills || []).find(s => s.name.startsWith('Allergi:')))
-                .filter(Boolean)
-                .map(s => s.name.replace('Allergi: ', '').replace('Allergi:', '').trim())
-                .filter(a => a && a !== 'Ingen')
-              return (
-                <div key={project} style={{background:'#fff',borderRadius:12,border:'1px solid #E5E7F0',padding:'1.5rem',marginBottom:16}}>
-                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
-                    <div style={{fontSize:20,fontWeight:700,color:'#1A1B2E'}}>{project}</div>
-                    <div style={{fontSize:13,color:'#6B7280'}}>{new Date(dates[0]).toLocaleDateString('nb-NO',{day:'numeric',month:'long'})} {dates.length > 1 ? '— ' + new Date(dates[dates.length-1]).toLocaleDateString('nb-NO',{day:'numeric',month:'long',year:'numeric'}) : new Date(dates[0]).toLocaleDateString('nb-NO',{year:'numeric'})}</div>
-                  </div>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
-                    <div style={{background:'#F8F9FE',borderRadius:10,padding:'12px 14px',border:'1px solid #E5E7F0'}}>
-                      <div style={{fontSize:11,fontWeight:700,color:'#6B7280',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>Crew ({crewMembers.length})</div>
-                      {crewMembers.map(c => {
-                        const col = COLORS[c.color_index % COLORS.length]
-                        return <div key={c.id} style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
-                          <div style={{width:28,height:28,borderRadius:'50%',background:col.bg,color:col.text,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,flexShrink:0}}>{c.initials}</div>
-                          <span style={{fontSize:13,color:'#1A1B2E',fontWeight:500}}>{c.name}</span>
-                        </div>
-                      })}
-                    </div>
-                    <div style={{background:'#F8F9FE',borderRadius:10,padding:'12px 14px',border:'1px solid #E5E7F0'}}>
-                      <div style={{fontSize:11,fontWeight:700,color:'#6B7280',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>Allergier / kosthold</div>
-                      {allergies.length === 0 ? (
-                        <div style={{fontSize:13,color:'#9CA3AF',fontStyle:'italic'}}>Ingen registrerte allergier</div>
-                      ) : (
-                        allergies.map((a,i) => {
-                          const crewWithAllergy = crewMembers.find(c => (c.skills||[]).find(s => s.name.includes(a)))
-                          return <div key={i} style={{fontSize:13,marginBottom:4}}>
-                            <span style={{color:'#A32D2D',fontWeight:600}}>{a}</span>
-                            {crewWithAllergy && <span style={{color:'#9CA3AF',fontSize:11}}> — {crewWithAllergy.name}</span>}
-                          </div>
-                        })
                       )}
                     </div>
                   </div>
