@@ -60,6 +60,9 @@ export default function BookingPage({ user }) {
   const [addForm, setAddForm] = useState({ first: '', last: '', rate: '', jobs: '', bio: '', skills: '', colorIndex: 0 })
   const [addError, setAddError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  const [myProfileOpen, setMyProfileOpen] = useState(false)
+  const [myProfileForm, setMyProfileForm] = useState({ title: '', phone: '', email: '' })
   const [pendingStatus, setPendingStatus] = useState(null)
   const [projectInput, setProjectInput] = useState('')
   const [bookedByInput, setBookedByInput] = useState('')
@@ -101,6 +104,10 @@ export default function BookingPage({ user }) {
   }, [weekOffset])
 
   useEffect(() => { loadCrew() }, [loadCrew])
+  useEffect(() => {
+    const savedProfile = localStorage.getItem('zcrew_profile')
+    if (savedProfile) { try { setMyProfileForm(JSON.parse(savedProfile)) } catch(e) {} }
+  }, [])
   useEffect(() => { loadBookings() }, [loadBookings])
 
   function getBooking(crewId, date) { return bookings[crewId + '_' + date] || null }
@@ -258,6 +265,12 @@ export default function BookingPage({ user }) {
     showToast('Sertifikat oppdatert')
   }
 
+  function saveMyProfile() {
+    localStorage.setItem('zcrew_profile', JSON.stringify(myProfileForm))
+    setMyProfileOpen(false)
+    showToast('Profil oppdatert!')
+  }
+
   async function confirmStatus() {
     if (!changeTarget || !pendingStatus) return
     const { crew: c, date } = changeTarget
@@ -352,7 +365,16 @@ export default function BookingPage({ user }) {
             <button style={{...s.tab, ...(view==='cal'?s.tabActive:{})}} onClick={() => setView('cal')}>Kalender</button>
             <button style={{...s.tab, ...(view==='crew'?s.tabActive:{})}} onClick={() => setView('crew')}>Crew</button>
           </div>
-          <button style={s.logoutBtn} onClick={logout}>Logg ut</button>
+          <div style={{position:'relative'}} onMouseEnter={() => setShowUserMenu(true)} onMouseLeave={() => setShowUserMenu(false)}>
+            <button style={s.logoutBtn}>👤 {userName || 'Min konto'}</button>
+            {showUserMenu && (
+              <div style={{position:'absolute',top:'100%',right:0,background:'#fff',borderRadius:10,border:'1px solid #E5E7F0',boxShadow:'0 8px 24px rgba(26,27,46,0.12)',minWidth:190,zIndex:200,overflow:'hidden',marginTop:4}}>
+                <button style={s.menuItem} onClick={() => { setMyProfileOpen(true); setShowUserMenu(false) }}>👤 Min profil</button>
+                <div style={{borderTop:'1px solid #F0F2FF'}} />
+                <button style={{...s.menuItem,color:'#C92A2A'}} onClick={() => { logout(); setShowUserMenu(false) }}>🚪 Logg ut</button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -712,6 +734,36 @@ export default function BookingPage({ user }) {
         </div>
       )}
 
+      {myProfileOpen && (
+        <div style={s.overlay} onClick={() => setMyProfileOpen(false)}>
+          <div style={{...s.modal,maxWidth:400}} onClick={e => e.stopPropagation()}>
+            <button style={s.closeBtn} onClick={() => setMyProfileOpen(false)}>×</button>
+            <div style={{background:'linear-gradient(135deg,#3B5BDB,#7048E8)',margin:'-1.5rem -1.5rem 1.5rem',padding:'24px',borderRadius:'14px 14px 0 0'}}>
+              <div style={{fontSize:28,marginBottom:8}}>👤</div>
+              <div style={{fontSize:20,fontWeight:700,color:'#fff'}}>{userName || 'Din profil'}</div>
+              {myProfileForm.title && <div style={{fontSize:14,color:'rgba(255,255,255,0.8)',marginTop:4}}>{myProfileForm.title}</div>}
+            </div>
+            <div style={{marginBottom:14}}>
+              <label style={s.formLabel}>Navn</label>
+              <input style={s.formInput} value={userName} onChange={e => { setUserName(e.target.value); localStorage.setItem('zcrew_username', e.target.value) }} placeholder="Ditt navn" />
+            </div>
+            <div style={{marginBottom:14}}>
+              <label style={s.formLabel}>Tittel / rolle</label>
+              <input style={s.formInput} value={myProfileForm.title} onChange={e => setMyProfileForm(f => ({...f,title:e.target.value}))} placeholder="f.eks. Prosjektleder" />
+            </div>
+            <div style={{marginBottom:14}}>
+              <label style={s.formLabel}>Telefon</label>
+              <input style={s.formInput} type="tel" value={myProfileForm.phone} onChange={e => setMyProfileForm(f => ({...f,phone:e.target.value}))} placeholder="f.eks. 98765432" />
+            </div>
+            <div style={{marginBottom:20}}>
+              <label style={s.formLabel}>E-post</label>
+              <input style={s.formInput} type="email" value={myProfileForm.email} onChange={e => setMyProfileForm(f => ({...f,email:e.target.value}))} placeholder="navn@zevent.no" />
+            </div>
+            <button style={s.submitBtn} onClick={saveMyProfile}>Lagre profil</button>
+          </div>
+        </div>
+      )}
+
       {toast && <div style={s.toast}>{toast}</div>}
     </div>
   )
@@ -725,6 +777,7 @@ const s = {
   brand:{fontSize:11,fontWeight:500,color:'#888',letterSpacing:'0.08em',textTransform:'uppercase'},
   title:{fontSize:20,fontWeight:500,margin:0},
   addBtn:{padding:'7px 14px',fontSize:13,borderRadius:8,border:'0.5px solid #d0cfc8',background:'#fff',color:'#1a1a18',cursor:'pointer',fontFamily:'inherit',whiteSpace:'nowrap'},
+  menuItem:{display:'block',width:'100%',padding:'11px 16px',fontSize:14,fontWeight:500,border:'none',background:'none',color:'#1A1B2E',cursor:'pointer',textAlign:'left',fontFamily:'inherit'},
   logoutBtn:{padding:'7px 14px',fontSize:13,borderRadius:8,border:'0.5px solid #d0cfc8',background:'none',color:'#888',cursor:'pointer',fontFamily:'inherit'},
   tabs:{display:'flex',gap:4,background:'#f1f0ea',borderRadius:8,padding:4},
   tab:{padding:'6px 14px',fontSize:13,border:'none',background:'transparent',color:'#888',borderRadius:6,cursor:'pointer',fontFamily:'inherit'},
