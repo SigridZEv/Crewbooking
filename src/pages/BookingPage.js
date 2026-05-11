@@ -499,7 +499,7 @@ export default function BookingPage({ user }) {
               <thead><tr>
                 <th style={{...s.th,textAlign:'left',minWidth:150}}>
                   <div style={{display:'flex',flexDirection:'column',alignItems:'flex-start',gap:4}}>
-                    <span style={{fontSize:16,fontWeight:600,color:'#1A1B2E'}}>Crew</span>
+                    <span style={{fontSize:22,fontWeight:700,color:'#1A1B2E'}}>Crew</span>
                     <div style={{display:'flex',alignItems:'center',gap:8}}>
                       <button style={{fontSize:15,fontWeight:600,border:'none',background:'none',cursor:'pointer',color:bulkMode?'#3B5BDB':'#6B7280',fontFamily:"'Avenir', 'Avenir Next', 'Century Gothic', 'Nunito', sans-serif",padding:0,textTransform:'none',letterSpacing:0}}
                         onClick={() => { setBulkMode(!bulkMode); setSelectedCrew([]) }}>
@@ -612,6 +612,7 @@ export default function BookingPage({ user }) {
               const today = new Date().toISOString().slice(0,10)
               const upcomingBookings = profileBookings.filter(b => b.date >= today && b.project)
               const pastBookings = profileBookings.filter(b => b.date < today && b.project)
+              const totalJobs = profileBookings.filter(b => b.status === 'booked').length
               return <>
                 <div style={{...s.modalAvatar,background:col.bg,color:col.text}}>{c.initials}</div>
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
@@ -719,25 +720,22 @@ export default function BookingPage({ user }) {
                 </div>
                 <div style={s.msec}>
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
-                    <div style={s.msecHdr}>Kommentarer</div>
+                    <div style={s.msecHdr}>Erfaringer/referanse</div>
                     {!editingNotes && <button style={s.editBtn} onClick={() => { setEditingNotes(true); setNotesInput(c.notes || '') }}>Rediger</button>}
                   </div>
                   {editingNotes ? (
                     <div style={{display:'flex',flexDirection:'column',gap:8}}>
-                      <textarea style={{...s.formInput,resize:'vertical'}} rows={3} value={notesInput} onChange={e => setNotesInput(e.target.value)} placeholder='Interne kommentarer...' autoFocus />
+                      <textarea style={{...s.formInput,resize:'vertical'}} rows={3} value={notesInput} onChange={e => setNotesInput(e.target.value)} placeholder='Erfaringer, referanser, tidligere jobber...' autoFocus />
                       <div style={{display:'flex',gap:8}}>
                         <button style={s.miniBtn} onClick={saveNotes}>Lagre</button>
                         <button style={s.clearBtn} onClick={() => setEditingNotes(false)}>Avbryt</button>
                       </div>
                     </div>
                   ) : (
-                    <p style={{fontSize:13,color:c.notes?'#444':'#aaa',lineHeight:1.6,margin:0}}>{c.notes || 'Ingen kommentarer'}</p>
+                    <p style={{fontSize:13,color:c.notes?'#444':'#aaa',lineHeight:1.6,margin:0}}>{c.notes || 'Ingen erfaringer registrert'}</p>
                   )}
                 </div>
-                <div style={s.statsGrid}>
-                  <div style={s.statCard}><div style={s.statLabel}>Ledige dager (uke)</div><div style={s.statVal}>{freeDays} av 7</div></div>
-                  <div style={s.statCard}><div style={s.statLabel}>Gjennomforte jobber</div><div style={s.statVal}>{c.jobs}</div></div>
-                </div>
+
 
                 {upcomingBookings.length > 0 && <div style={s.msec}>
                   <div style={s.msecHdr}>Kommende bookinger</div>
@@ -840,7 +838,7 @@ export default function BookingPage({ user }) {
 
             <div style={{marginBottom:16}}><label style={s.formLabel}>Bio</label><textarea style={{...s.formInput,resize:'vertical'}} rows={2} value={addForm.bio} onChange={e => setAddForm(f=>({...f,bio:e.target.value}))} placeholder="Kort beskrivelse av erfaring..." /></div>
 
-            <div style={{marginBottom:16}}><label style={s.formLabel}>Kommentarer</label><textarea style={{...s.formInput,resize:'vertical'}} rows={2} value={addForm.notes} onChange={e => setAddForm(f=>({...f,notes:e.target.value}))} placeholder="Interne kommentarer..." /></div>
+            <div style={{marginBottom:16}}><label style={s.formLabel}>Erfaringer/referanse</label><textarea style={{...s.formInput,resize:'vertical'}} rows={2} value={addForm.notes} onChange={e => setAddForm(f=>({...f,notes:e.target.value}))} placeholder="Erfaringer, referanser, tidligere jobber..." /></div>
 
             <div style={{marginBottom:20}}>
               <label style={s.formLabel}>Avatarfarge</label>
@@ -993,7 +991,7 @@ const s = {
   statLabel:{fontSize:11,color:'#6B7280',marginBottom:4,fontWeight:500,textTransform:'uppercase',letterSpacing:'0.05em'},
   statVal:{fontSize:20,fontWeight:700,color:'#3B5BDB'},
   msec:{marginTop:'1.25rem'},
-  msecHdr:{fontSize:10,fontWeight:700,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:8},
+  msecHdr:{fontSize:12,fontWeight:700,color:'#1A1B2E',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:8},
   bookingRow:{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid #F0F2FF',fontSize:13},
   bookingDay:{color:'#6B7280',minWidth:90,fontSize:12,fontWeight:500},
   bookingProject:{fontWeight:600,color:'#1A1B2E',flex:1},
