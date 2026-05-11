@@ -499,7 +499,7 @@ export default function BookingPage({ user }) {
               <thead><tr>
                 <th style={{...s.th,textAlign:'left',minWidth:150}}>
                   <div style={{display:'flex',flexDirection:'column',alignItems:'flex-start',gap:4}}>
-                    <span style={{fontSize:14,fontWeight:700,letterSpacing:'0.08em'}}>CREW</span>
+                    <span style={{fontSize:16,fontWeight:600,color:'#1A1B2E'}}>Crew</span>
                     <div style={{display:'flex',alignItems:'center',gap:8}}>
                       <button style={{fontSize:15,fontWeight:600,border:'none',background:'none',cursor:'pointer',color:bulkMode?'#3B5BDB':'#6B7280',fontFamily:"'Avenir', 'Avenir Next', 'Century Gothic', 'Nunito', sans-serif",padding:0,textTransform:'none',letterSpacing:0}}
                         onClick={() => { setBulkMode(!bulkMode); setSelectedCrew([]) }}>
