@@ -517,7 +517,7 @@ export default function BookingPage({ user }) {
                     </div>
                   ) : (
                     <>
-                      <div style={{fontSize:18,fontWeight:500,color:'#1a1a18',flex:1}}>{c.name}</div>
+                      <div style={{fontSize:22,fontWeight:700,color:'#1a1a18',flex:1}}>{c.name}</div>
                       <button style={s.editBtn} onClick={() => { setEditingName(true); setNameInput(c.name) }}>Rediger navn</button>
                     </>
                   )}
@@ -537,7 +537,7 @@ export default function BookingPage({ user }) {
                       <button style={s.clearBtn} onClick={() => setEditingRate(false)}>Avbryt</button>
                     </div>
                   ) : (
-                    <div style={{fontSize:24,fontWeight:500,color:'#1a1a18'}}>{c.rate} kr<span style={{fontSize:13,fontWeight:400,color:'#888'}}>/t</span></div>
+                    <div style={{fontSize:20,fontWeight:600,color:'#1a1a18'}}>{c.rate} kr<span style={{fontSize:13,fontWeight:400,color:'#888'}}>/t</span></div>
                   )}
                 </div>
 
@@ -581,7 +581,7 @@ export default function BookingPage({ user }) {
                       <button style={s.clearBtn} onClick={() => setEditingCertificate(false)}>Avbryt</button>
                     </div>
                   ) : (
-                    <div style={{fontSize:13,color: certificateInput ? '#1A1B2E' : '#aaa'}}>{certificateInput || 'Ikke registrert'}</div>
+                    <div style={{fontSize:13,color: certificateInput ? '#1a1a18' : '#555'}}>{certificateInput || 'Ikke registrert'}</div>
                   )}
                 </div>
 
@@ -640,19 +640,19 @@ export default function BookingPage({ user }) {
                 </div>
                 <div style={s.msec}>
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
-                    <div style={s.msecHdr}>Kommentarer</div>
+                    <div style={s.msecHdr}>Erfaringer/referanse</div>
                     {!editingNotes && <button style={s.editBtn} onClick={() => { setEditingNotes(true); setNotesInput(c.notes || '') }}>Rediger</button>}
                   </div>
                   {editingNotes ? (
                     <div style={{display:'flex',flexDirection:'column',gap:8}}>
-                      <textarea style={{...s.formInput,resize:'vertical'}} rows={3} value={notesInput} onChange={e => setNotesInput(e.target.value)} placeholder='Interne kommentarer...' autoFocus />
+                      <textarea style={{...s.formInput,resize:'vertical'}} rows={3} value={notesInput} onChange={e => setNotesInput(e.target.value)} placeholder='Erfaringer, referanser...' autoFocus />
                       <div style={{display:'flex',gap:8}}>
                         <button style={s.miniBtn} onClick={saveNotes}>Lagre</button>
                         <button style={s.clearBtn} onClick={() => setEditingNotes(false)}>Avbryt</button>
                       </div>
                     </div>
                   ) : (
-                    <p style={{fontSize:13,color:c.notes?'#444':'#aaa',lineHeight:1.6,margin:0}}>{c.notes || 'Ingen kommentarer'}</p>
+                    <p style={{fontSize:13,color:c.notes?'#444':'#aaa',lineHeight:1.6,margin:0}}>{c.notes || 'Ingen erfaringer registrert'}</p>
                   )}
                 </div>
                 <div style={s.statsGrid}>
@@ -844,7 +844,7 @@ const s = {
   dayCell:{padding:'8px 6px',textAlign:'center',borderBottom:'0.5px solid #e0dfd8',borderLeft:'0.5px solid #e0dfd8',minWidth:110,verticalAlign:'top'},
   pill:{display:'inline-flex',alignItems:'center',justifyContent:'center',width:32,height:32,borderRadius:'50%',fontSize:11,cursor:'pointer',fontWeight:500,border:'none',fontFamily:'inherit'},
   projectLabel:{fontSize:10,color:'#444',lineHeight:1.4,marginTop:2,wordBreak:'break-word',maxWidth:100,textAlign:'center'},
-  bookedByLabel:{fontSize:9,color:'#aaa',lineHeight:1.3,textAlign:'center'},
+  bookedByLabel:{fontSize:9,color:'#888',lineHeight:1.3,textAlign:'center'},
   crewGrid:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:12},
   crewCard:{background:'#fff',borderRadius:12,border:'0.5px solid #e0dfd8',padding:'1.25rem',cursor:'pointer'},
   rate:{fontSize:20,fontWeight:500,color:'#1a1a18'},
@@ -854,25 +854,25 @@ const s = {
   modal:{background:'#fff',borderRadius:16,border:'0.5px solid #e0dfd8',padding:'1.5rem',width:'100%',maxWidth:480,position:'relative',maxHeight:'85vh',overflowY:'auto',margin:'0 1rem'},
   closeBtn:{position:'absolute',top:12,right:12,background:'none',border:'none',fontSize:18,cursor:'pointer',color:'#888',fontFamily:'inherit'},
   editBtn:{fontSize:11,color:'#666',background:'none',border:'0.5px solid #d0cfc8',borderRadius:6,padding:'3px 8px',cursor:'pointer',fontFamily:'inherit'},
-  modalAvatar:{width:56,height:56,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:500,marginBottom:10},
+  modalAvatar:{width:64,height:64,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,fontWeight:700,marginBottom:12},
   infoGrid:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginTop:'1.1rem'},
   infoCell:{background:'#f5f4f0',borderRadius:8,padding:'10px 12px'},
   statsGrid:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginTop:'1.1rem'},
   statCard:{background:'#f5f4f0',borderRadius:8,padding:'10px 12px'},
-  statLabel:{fontSize:11,color:'#888',marginBottom:3},
+  statLabel:{fontSize:11,fontWeight:600,color:'#555',marginBottom:3,textTransform:'uppercase',letterSpacing:'.04em'},
   statVal:{fontSize:16,fontWeight:500,color:'#1a1a18'},
-  msec:{marginTop:'1.1rem'},
-  msecHdr:{fontSize:11,fontWeight:500,color:'#888',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:4},
+  msec:{marginTop:0,paddingTop:'1rem',borderTop:'1px solid #f0f0ea'},
+  msecHdr:{fontSize:12,fontWeight:700,color:'#1a1a18',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6},
   bookingRow:{display:'flex',alignItems:'center',gap:8,padding:'5px 0',borderBottom:'0.5px solid #e0dfd8',fontSize:13},
   bookingDay:{color:'#888',minWidth:80,fontSize:12},
   bookingProject:{fontWeight:500,color:'#1a1a18',flex:1},
-  bookingBy:{fontSize:11,color:'#aaa'},
+  bookingBy:{fontSize:11,color:'#888'},
   skillRow:{display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderBottom:'0.5px solid #e0dfd8'},
   skillName:{fontSize:13,fontWeight:500,color:'#1a1a18',minWidth:110},
   comment:{flex:1,fontSize:12,color:'#444',lineHeight:1.5,cursor:'pointer',padding:'2px 4px',borderRadius:4},
-  commentEmpty:{color:'#aaa',fontStyle:'italic'},
+  commentEmpty:{color:'#888',fontStyle:'italic'},
   commentInput:{flex:1,fontSize:12,padding:'4px 8px',borderRadius:6,border:'0.5px solid #b0afaa',background:'#fff',color:'#1a1a18',fontFamily:'inherit',outline:'none'},
-  delSkill:{background:'none',border:'none',cursor:'pointer',color:'#aaa',fontSize:13,padding:'2px 4px',lineHeight:1,fontFamily:'inherit',flexShrink:0},
+  delSkill:{background:'none',border:'none',cursor:'pointer',color:'#888',fontSize:13,padding:'2px 4px',lineHeight:1,fontFamily:'inherit',flexShrink:0},
   miniBtn:{padding:'5px 10px',fontSize:12,borderRadius:8,border:'0.5px solid #d0cfc8',background:'#fff',color:'#1a1a18',cursor:'pointer',fontFamily:'inherit',whiteSpace:'nowrap'},
   statusOpt:{padding:'10px 12px',borderRadius:8,border:'0.5px solid #d0cfc8',cursor:'pointer',display:'flex',alignItems:'center',gap:10,background:'none',textAlign:'left',fontFamily:'inherit',fontSize:13,color:'#1a1a18',width:'100%',marginBottom:6},
   formRow2:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14},
