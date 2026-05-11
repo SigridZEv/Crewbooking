@@ -63,7 +63,7 @@ export default function BookingPage({ user }) {
   const [toast, setToast] = useState('')
   const [newSkillInput, setNewSkillInput] = useState('')
   const [editingComment, setEditingComment] = useState(null)
-  const [addForm, setAddForm] = useState({ first: '', last: '', rate: '', jobs: '', bio: '', skills: '', colorIndex: 0 })
+  const [addForm, setAddForm] = useState({ first: '', last: '', rate: '', jobs: '', bio: '', skills: '', colorIndex: 0, birthdate: '', location: '', allergy: '', notes: '' })
   const [addError, setAddError] = useState('')
   const [saving, setSaving] = useState(false)
   const [pendingStatus, setPendingStatus] = useState(null)
@@ -145,7 +145,7 @@ export default function BookingPage({ user }) {
     setCrew(prev => prev.map(c => c.id === profileOpen.id ? { ...c, rate: newRate } : c))
     setProfileOpen(prev => ({ ...prev, rate: newRate }))
     setEditingRate(false)
-    showToast('Timelonn oppdatert')
+    showToast('Timelønn oppdatert')
   }
 
   async function saveBio() {
@@ -252,15 +252,27 @@ export default function BookingPage({ user }) {
   }
 
   async function addCrew() {
-    const { first, last, rate, jobs, bio, skills: skillsRaw, colorIndex } = addForm
+    const { first, last, rate, jobs, bio, skills: skillsRaw, colorIndex, birthdate, location, allergy, notes } = addForm
     if (!first || !last || !rate) { setAddError('Fyll ut alle obligatoriske felt.'); return }
     setAddError(''); setSaving(true)
-    const { data: newCrew, error } = await supabase.from('crew').insert({ name: first + ' ' + last, initials: (first[0] + last[0]).toUpperCase(), rate: parseInt(rate), jobs: parseInt(jobs) || 0, bio, color_index: colorIndex }).select().single()
+    const { data: newCrew, error } = await supabase.from('crew').insert({
+      name: first + ' ' + last,
+      initials: (first[0] + last[0]).toUpperCase(),
+      rate: parseInt(rate),
+      jobs: parseInt(jobs) || 0,
+      bio,
+      color_index: colorIndex,
+      birthdate: birthdate || null,
+      location: location || '',
+      notes: notes || '',
+    }).select().single()
     if (error || !newCrew) { setAddError('Noe gikk galt.'); setSaving(false); return }
-    if (skillsRaw.trim()) await supabase.from('skills').insert(skillsRaw.split(',').map(s => s.trim()).filter(Boolean).map(s => ({ crew_id: newCrew.id, name: s, comment: '' })))
+    const skillsList = skillsRaw.split(',').map(s => s.trim()).filter(Boolean).map(s => ({ crew_id: newCrew.id, name: s, comment: '' }))
+    if (allergy.trim()) skillsList.push({ crew_id: newCrew.id, name: 'Allergi: ' + allergy.trim(), comment: '' })
+    if (skillsList.length > 0) await supabase.from('skills').insert(skillsList)
     await loadCrew()
     setAddOpen(false)
-    setAddForm({ first: '', last: '', rate: '', jobs: '', bio: '', skills: '', colorIndex: 0 })
+    setAddForm({ first: '', last: '', rate: '', jobs: '', bio: '', skills: '', colorIndex: 0, birthdate: '', location: '', allergy: '', notes: '' })
     setSaving(false)
     showToast(first + ' ' + last + ' er lagt til!')
   }
@@ -343,7 +355,13 @@ export default function BookingPage({ user }) {
   return (
     <div style={s.page}>
       <div style={s.header}>
-        <div><span style={s.brand}>Z Event</span><h1 style={s.title}>Crew booking</h1></div>
+        <div style={{display:'flex',alignItems:'center',gap:14}}>
+          <img src="/Z_logo_04.jpg" alt="Z Event" style={{width:40,height:40,objectFit:'contain'}} />
+          <div>
+            <span style={s.brand}>Z Event</span>
+            <h1 style={s.title}>Crew booking</h1>
+          </div>
+        </div>
         <div style={s.headerRight}>
           <button style={s.addBtn} onClick={() => setAddOpen(true)}>+ Legg til crew</button>
           <div style={s.tabs}>
@@ -701,27 +719,40 @@ export default function BookingPage({ user }) {
       {/* Add crew modal */}
       {addOpen && (
         <div style={s.overlay} onClick={() => setAddOpen(false)}>
-          <div style={{...s.modal,maxWidth:460}} onClick={e => e.stopPropagation()}>
-            <button style={s.closeBtn} onClick={() => setAddOpen(false)}>X</button>
-            <div style={{fontSize:17,fontWeight:500,marginBottom:20,color:'#1a1a18'}}>Legg til crew</div>
+          <div style={{...s.modal,maxWidth:520}} onClick={e => e.stopPropagation()}>
+            <button style={s.closeBtn} onClick={() => setAddOpen(false)}>✕</button>
+            <div style={{fontSize:20,fontWeight:700,marginBottom:24,color:'#1A1B2E'}}>Legg til crew</div>
+
             <div style={s.formRow2}>
               <div><label style={s.formLabel}>Fornavn *</label><input style={s.formInput} value={addForm.first} onChange={e => setAddForm(f=>({...f,first:e.target.value}))} placeholder="Sara" /></div>
               <div><label style={s.formLabel}>Etternavn *</label><input style={s.formInput} value={addForm.last} onChange={e => setAddForm(f=>({...f,last:e.target.value}))} placeholder="Haugen" /></div>
             </div>
+
             <div style={s.formRow2}>
-              <div><label style={s.formLabel}>Timelonn (kr) *</label><input style={s.formInput} type="number" value={addForm.rate} onChange={e => setAddForm(f=>({...f,rate:e.target.value}))} placeholder="600" /></div>
-              <div><label style={s.formLabel}>Antall jobber</label><input style={s.formInput} type="number" value={addForm.jobs} onChange={e => setAddForm(f=>({...f,jobs:e.target.value}))} placeholder="0" /></div>
+              <div><label style={s.formLabel}>Timelønn (kr) *</label><input style={s.formInput} type="number" value={addForm.rate} onChange={e => setAddForm(f=>({...f,rate:e.target.value}))} placeholder="600" /></div>
+              <div><label style={s.formLabel}>Fødselsdato</label><input style={s.formInput} type="date" value={addForm.birthdate} onChange={e => setAddForm(f=>({...f,birthdate:e.target.value}))} /></div>
             </div>
-            <div style={{marginBottom:14}}><label style={s.formLabel}>Kompetanse (kommaseparert)</label><input style={s.formInput} value={addForm.skills} onChange={e => setAddForm(f=>({...f,skills:e.target.value}))} placeholder="Sony FX9, Drone" /></div>
-            <div style={{marginBottom:14}}><label style={s.formLabel}>Kort bio</label><textarea style={{...s.formInput,resize:'vertical'}} rows={2} value={addForm.bio} onChange={e => setAddForm(f=>({...f,bio:e.target.value}))} placeholder="Kort beskrivelse..." /></div>
-            <div style={{marginBottom:14}}>
+
+            <div style={{marginBottom:16}}><label style={s.formLabel}>Bosted</label><input style={s.formInput} value={addForm.location} onChange={e => setAddForm(f=>({...f,location:e.target.value}))} placeholder="f.eks. Oslo" /></div>
+
+            <div style={{marginBottom:16}}><label style={s.formLabel}>Allergi / kosthold</label><input style={s.formInput} value={addForm.allergy} onChange={e => setAddForm(f=>({...f,allergy:e.target.value}))} placeholder="f.eks. Laktose, gluten..." /></div>
+
+            <div style={{marginBottom:16}}><label style={s.formLabel}>Kompetanse <span style={{fontWeight:400,textTransform:'none',letterSpacing:0}}>(kommaseparert)</span></label><input style={s.formInput} value={addForm.skills} onChange={e => setAddForm(f=>({...f,skills:e.target.value}))} placeholder="Sony FX9, Drone, Steadicam" /></div>
+
+            <div style={{marginBottom:16}}><label style={s.formLabel}>Bio</label><textarea style={{...s.formInput,resize:'vertical'}} rows={2} value={addForm.bio} onChange={e => setAddForm(f=>({...f,bio:e.target.value}))} placeholder="Kort beskrivelse av erfaring..." /></div>
+
+            <div style={{marginBottom:16}}><label style={s.formLabel}>Kommentarer</label><textarea style={{...s.formInput,resize:'vertical'}} rows={2} value={addForm.notes} onChange={e => setAddForm(f=>({...f,notes:e.target.value}))} placeholder="Interne kommentarer..." /></div>
+
+            <div style={{marginBottom:20}}>
               <label style={s.formLabel}>Avatarfarge</label>
-              <div style={{display:'flex',gap:8,marginTop:6,flexWrap:'wrap'}}>
-                {COLORS.map((col,i) => <div key={i} onClick={() => setAddForm(f=>({...f,colorIndex:i}))} style={{width:26,height:26,borderRadius:'50%',background:col.bg,cursor:'pointer',border:addForm.colorIndex===i?'2px solid #1a1a18':'2px solid transparent'}} />)}
+              <div style={{display:'flex',gap:8,marginTop:8,flexWrap:'wrap'}}>
+                {COLORS.map((col,i) => <div key={i} onClick={() => setAddForm(f=>({...f,colorIndex:i}))} style={{width:30,height:30,borderRadius:'50%',background:col.bg,cursor:'pointer',border:addForm.colorIndex===i?'3px solid #3B5BDB':'2px solid transparent',transition:'border 0.1s'}} />)}
               </div>
             </div>
-            {addError && <p style={{fontSize:12,color:'#A32D2D',marginBottom:8}}>{addError}</p>}
-            <button style={s.submitBtn} onClick={addCrew} disabled={saving}>{saving?'Lagrer...':'Legg til'}</button>
+
+            <p style={{fontSize:11,color:'#9CA3AF',marginBottom:12}}>* Obligatorisk felt</p>
+            {addError && <p style={{fontSize:13,color:'#C92A2A',marginBottom:12,background:'#FFF0F0',padding:'8px 12px',borderRadius:7}}>{addError}</p>}
+            <button style={s.submitBtn} onClick={addCrew} disabled={saving}>{saving?'Lagrer...':'Legg til crew'}</button>
           </div>
         </div>
       )}
