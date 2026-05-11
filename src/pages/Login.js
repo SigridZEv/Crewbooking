@@ -41,7 +41,7 @@ export default function Login() {
         boxShadow: '0 20px 60px rgba(26,27,46,0.3)',
       }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <img src="/Z_logo_04.jpg" alt="Z Event" style={{ width: 64, height: 64, objectFit: 'contain', margin: '0 auto 16px', display: 'block' }} />
+          <img src="/Z_logo.png" alt="Z Event" style={{ width: 80, height: 80, objectFit: 'contain', margin: '0 auto 16px', display: 'block' }} />
           <div style={{ fontSize: 11, fontWeight: 700, color: '#4C6EF5', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 6 }}>Z Event</div>
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: '0 0 6px', color: '#1A1B2E', letterSpacing: '-0.02em' }}>Z Crew Portal</h1>
           <p style={{ fontSize: 14, color: '#6B7280', margin: 0 }}>
