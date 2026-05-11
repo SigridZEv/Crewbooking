@@ -20,7 +20,6 @@ const COLORS = [
 
 const ALLERGIES = ['Ingen', 'Melk / laktose', 'Gluten / hvete', 'Nøtter', 'Egg', 'Fisk', 'Skalldyr', 'Soya', 'Sesamfrø', 'Annet']
 
-const ALLERGIES = ['Ingen', 'Melk/Laktose', 'Egg', 'Hvete/Gluten', 'Soya', 'Nøtter', 'Skalldyr', 'Fisk', 'Sesamfrø', 'Annet']
 
 const STATUS = {
   free:        { label: 'L', full: 'Ledig',             bg: '#E1F5EE', c: '#0F6E56' },
