@@ -60,10 +60,11 @@ export default function BookingPage({ user }) {
   const [addForm, setAddForm] = useState({ first: '', last: '', rate: '', jobs: '', bio: '', skills: '', colorIndex: 0 })
   const [addError, setAddError] = useState('')
   const [saving, setSaving] = useState(false)
-  const [userName, setUserName] = useState(localStorage.getItem('zcrew_username') || '')
+  const [userName, setUserName] = useState('')
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [myProfileOpen, setMyProfileOpen] = useState(false)
   const [myProfileForm, setMyProfileForm] = useState({ title: '', phone: '', email: '' })
+  const [userId, setUserId] = useState(null)
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -113,8 +114,19 @@ export default function BookingPage({ user }) {
 
   useEffect(() => { loadCrew() }, [loadCrew])
   useEffect(() => {
-    const savedProfile = localStorage.getItem('zcrew_profile')
-    if (savedProfile) { try { setMyProfileForm(JSON.parse(savedProfile)) } catch(e) {} }
+    async function loadProfile() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      setUserId(user.id)
+      const { data } = await supabase.from('user_profiles').select('*').eq('id', user.id).single()
+      if (data) {
+        setUserName(data.display_name || '')
+        setMyProfileForm({ title: data.title || '', phone: data.phone || '', email: data.email || user.email || '' })
+      } else {
+        setMyProfileForm(f => ({ ...f, email: user.email || '' }))
+      }
+    }
+    loadProfile()
   }, [])
   useEffect(() => { loadBookings() }, [loadBookings])
 
@@ -253,6 +265,7 @@ export default function BookingPage({ user }) {
     const { data } = await supabase.from('crew_comments').insert({
       crew_id: profileOpen.id,
       author: userName || 'Ukjent',
+      author_id: userId,
       content: newComment.trim()
     }).select().single()
     if (data) {
@@ -296,8 +309,16 @@ export default function BookingPage({ user }) {
     showToast('Sertifikat oppdatert')
   }
 
-  function saveMyProfile() {
-    localStorage.setItem('zcrew_profile', JSON.stringify(myProfileForm))
+  async function saveMyProfile() {
+    if (!userId) return
+    await supabase.from('user_profiles').upsert({
+      id: userId,
+      display_name: userName,
+      title: myProfileForm.title,
+      phone: myProfileForm.phone,
+      email: myProfileForm.email,
+      updated_at: new Date().toISOString()
+    })
     setMyProfileOpen(false)
     showToast('Profil oppdatert!')
   }
@@ -411,10 +432,12 @@ export default function BookingPage({ user }) {
           <div style={{position:'relative'}} onMouseEnter={() => setShowUserMenu(true)} onMouseLeave={() => setShowUserMenu(false)}>
             <button style={s.logoutBtn}>👤 {userName || 'Min konto'}</button>
             {showUserMenu && (
-              <div style={{position:'absolute',top:'100%',right:0,background:'#fff',borderRadius:10,border:'1px solid #E5E7F0',boxShadow:'0 8px 24px rgba(26,27,46,0.12)',minWidth:190,zIndex:200,overflow:'hidden',marginTop:4}}>
-                <button style={s.menuItem} onClick={() => { setMyProfileOpen(true); setShowUserMenu(false) }}>👤 Min profil</button>
-                <div style={{borderTop:'1px solid #F0F2FF'}} />
-                <button style={{...s.menuItem,color:'#C92A2A'}} onClick={() => { logout(); setShowUserMenu(false) }}>🚪 Logg ut</button>
+              <div style={{position:'absolute',top:'100%',right:0,paddingTop:8,zIndex:200}}>
+                <div style={{background:'#fff',borderRadius:10,border:'1px solid #E5E7F0',boxShadow:'0 8px 24px rgba(26,27,46,0.12)',minWidth:190,overflow:'hidden'}}>
+                  <button style={s.menuItem} onClick={() => { setMyProfileOpen(true); setShowUserMenu(false) }}>👤 Min profil</button>
+                  <div style={{borderTop:'1px solid #F0F2FF'}} />
+                  <button style={{...s.menuItem,color:'#C92A2A'}} onClick={() => { logout(); setShowUserMenu(false) }}>🚪 Logg ut</button>
+                </div>
               </div>
             )}
           </div>
