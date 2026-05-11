@@ -72,6 +72,7 @@ export default function BookingPage({ user }) {
   const [editingAllergy, setEditingAllergy] = useState(false)
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState('')
+  const [profileBookings, setProfileBookings] = useState([])
   const [editingLocation, setEditingLocation] = useState(false)
   const [locationInput, setLocationInput] = useState('')
   const [editingNotes, setEditingNotes] = useState(false)
@@ -485,6 +486,9 @@ export default function BookingPage({ user }) {
               const freeDays = days.filter(d => getStatus(c.id, dk(d)) === 'free').length
               const skills = (c.skills || []).filter(s => !s.name.startsWith('Allergi:'))
               const weekBookings = days.map(d => ({day: fmtDay(d), b: getBooking(c.id, dk(d))})).filter(x => x.b && x.b.status === 'booked' && x.b.project)
+              const today = new Date().toISOString().slice(0,10)
+              const upcomingBookings = profileBookings.filter(b => b.date >= today && b.project)
+              const pastBookings = profileBookings.filter(b => b.date < today && b.project)
               return <>
                 <div style={{...s.modalAvatar,background:col.bg,color:col.text}}>{c.initials}</div>
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
@@ -612,13 +616,25 @@ export default function BookingPage({ user }) {
                   <div style={s.statCard}><div style={s.statLabel}>Gjennomforte jobber</div><div style={s.statVal}>{c.jobs}</div></div>
                 </div>
 
-                {weekBookings.length > 0 && <div style={s.msec}>
-                  <div style={s.msecHdr}>Bookinger denne uken</div>
-                  {weekBookings.map((x,i) => <div key={i} style={s.bookingRow}>
-                    <span style={s.bookingDay}>{x.day}</span>
-                    <span style={s.bookingProject}>{x.b.project}</span>
-                    {x.b.booked_by && <span style={s.bookingBy}>av {x.b.booked_by}</span>}
+                {upcomingBookings.length > 0 && <div style={s.msec}>
+                  <div style={s.msecHdr}>Kommende bookinger</div>
+                  {upcomingBookings.map((b,i) => <div key={i} style={{...s.bookingRow, background: i%2===0?'#fafaf8':undefined, padding:'8px 4px'}}>
+                    <span style={s.bookingDay}>{new Date(b.date).toLocaleDateString('nb-NO',{day:'numeric',month:'short',year:'numeric'})}</span>
+                    <span style={s.bookingProject}>{b.project}</span>
+                    {b.booked_by && <span style={s.bookingBy}>av {b.booked_by}</span>}
                   </div>)}
+                </div>}
+                {pastBookings.length > 0 && <div style={s.msec}>
+                  <div style={s.msecHdr}>Jobbhistorikk ({pastBookings.length} jobber)</div>
+                  {pastBookings.map((b,i) => <div key={i} style={{...s.bookingRow, background: i%2===0?'#fafaf8':undefined, padding:'8px 4px'}}>
+                    <span style={s.bookingDay}>{new Date(b.date).toLocaleDateString('nb-NO',{day:'numeric',month:'short',year:'numeric'})}</span>
+                    <span style={s.bookingProject}>{b.project}</span>
+                    {b.booked_by && <span style={s.bookingBy}>av {b.booked_by}</span>}
+                  </div>)}
+                </div>}
+                {profileBookings.length === 0 && <div style={s.msec}>
+                  <div style={s.msecHdr}>Jobbhistorikk</div>
+                  <p style={{fontSize:13,color:'#aaa',margin:0}}>Ingen bookinger registrert enda.</p>
                 </div>}
 
                 {/* Skills */}
