@@ -71,6 +71,14 @@ export default function BookingPage({ user }) {
   const [userName, setUserName] = useState('')
   const [settingName, setSettingName] = useState(false)
   const [nameInputVal, setNameInputVal] = useState('')
+  const [bulkMode, setBulkMode] = useState(false)
+  const [selectedCrew, setSelectedCrew] = useState([])
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const [bulkFrom, setBulkFrom] = useState('')
+  const [bulkTo, setBulkTo] = useState('')
+  const [bulkProject, setBulkProject] = useState('')
+  const [bulkStatus, setBulkStatus] = useState('booked')
+  const [bulkSaving, setBulkSaving] = useState(false)
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordError, setPasswordError] = useState('')
@@ -259,6 +267,40 @@ export default function BookingPage({ user }) {
     setTimeout(() => { setChangePasswordOpen(false); setPasswordSuccess(false) }, 2000)
   }
 
+  async function saveBulkBooking() {
+    if (!bulkFrom || !bulkTo || !bulkProject || selectedCrew.length === 0) return
+    setBulkSaving(true)
+    const dates = []
+    let cur = new Date(bulkFrom)
+    const end = new Date(bulkTo)
+    while (cur <= end) {
+      dates.push(cur.toISOString().slice(0, 10))
+      cur.setDate(cur.getDate() + 1)
+    }
+    const rows = []
+    selectedCrew.forEach(crewId => {
+      dates.forEach(date => {
+        rows.push({ crew_id: crewId, date, status: bulkStatus, project: bulkProject, booked_by: userName })
+      })
+    })
+    // Upsert in batches of 50
+    for (let i = 0; i < rows.length; i += 50) {
+      await supabase.from('bookings').upsert(rows.slice(i, i + 50), { onConflict: 'crew_id,date' })
+    }
+    // Update local state
+    const newBookings = { ...bookings }
+    rows.forEach(r => { newBookings[r.crew_id + '_' + r.date] = r })
+    setBookings(newBookings)
+    setBulkSaving(false)
+    setBulkOpen(false)
+    setBulkMode(false)
+    setSelectedCrew([])
+    setBulkFrom('')
+    setBulkTo('')
+    setBulkProject('')
+    showToast(`${selectedCrew.length} crew booket på ${bulkProject}!`)
+  }
+
   async function confirmStatus() {
     if (!changeTarget || !pendingStatus) return
     const { crew: c, date } = changeTarget
@@ -401,6 +443,12 @@ export default function BookingPage({ user }) {
             <button style={{...s.tab, ...(view==='cal'?s.tabActive:{})}} onClick={() => setView('cal')}>Kalender</button>
             <button style={{...s.tab, ...(view==='crew'?s.tabActive:{})}} onClick={() => setView('crew')}>Crew</button>
           </div>
+          <button style={{...s.changePassBtn, background: bulkMode ? '#EEF2FF' : '#fff', color: bulkMode ? '#3B5BDB' : '#6B7280', fontWeight: bulkMode ? 700 : 400}} onClick={() => { setBulkMode(!bulkMode); setSelectedCrew([]) }}>
+            {bulkMode ? `✓ ${selectedCrew.length} valgt` : '☑ Velg flere'}
+          </button>
+          {bulkMode && selectedCrew.length > 0 && (
+            <button style={{...s.addBtn, padding:'9px 14px',fontSize:13}} onClick={() => setBulkOpen(true)}>Book {selectedCrew.length} crew</button>
+          )}
           <button style={s.changePassBtn} onClick={() => { setSettingName(true); setNameInputVal(userName) }}>👤 {userName || 'Sett navn'}</button>
           <button style={s.changePassBtn} onClick={() => { setChangePasswordOpen(true); setPasswordError(''); setPasswordSuccess(false) }}>🔑 Bytt passord</button>
           <button style={s.logoutBtn} onClick={logout}>Logg ut</button>
@@ -464,15 +512,22 @@ export default function BookingPage({ user }) {
                   const col = COLORS[c.color_index % COLORS.length]
                   return <tr key={c.id}>
                     <td style={s.crewCell}>
-                      <div style={s.crewInfo} onClick={() => openProfile(c)}>
-                        <div style={{...s.avatar,background:col.bg,color:col.text}}>{c.initials}</div>
-                        <div>
-                          <span style={s.crewName}>{c.name}</span>
-                          {filterFrom && filterTo && rangeDates.length > 0 && (
-                            <div style={{fontSize:10,color:'#0F6E56',marginTop:1}}>
-                              {periodFreeCounts[c.id] || 0} av {rangeDates.length} dager ledig
-                            </div>
-                          )}
+                      <div style={{display:'flex',alignItems:'center',gap:8}}>
+                        {bulkMode && (
+                          <input type="checkbox" checked={selectedCrew.includes(c.id)}
+                            onChange={e => setSelectedCrew(prev => e.target.checked ? [...prev, c.id] : prev.filter(id => id !== c.id))}
+                            style={{width:16,height:16,cursor:'pointer',accentColor:'#3B5BDB'}} />
+                        )}
+                        <div style={s.crewInfo} onClick={() => bulkMode ? setSelectedCrew(prev => prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]) : openProfile(c)}>
+                          <div style={{...s.avatar,background:col.bg,color:col.text}}>{c.initials}</div>
+                          <div>
+                            <span style={s.crewName}>{c.name}</span>
+                            {filterFrom && filterTo && rangeDates.length > 0 && (
+                              <div style={{fontSize:10,color:'#0F6E56',marginTop:1}}>
+                                {periodFreeCounts[c.id] || 0} av {rangeDates.length} dager ledig
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -788,6 +843,48 @@ export default function BookingPage({ user }) {
             <p style={{fontSize:11,color:'#9CA3AF',marginBottom:12}}>* Obligatorisk felt</p>
             {addError && <p style={{fontSize:13,color:'#C92A2A',marginBottom:12,background:'#FFF0F0',padding:'8px 12px',borderRadius:7}}>{addError}</p>}
             <button style={s.submitBtn} onClick={addCrew} disabled={saving}>{saving?'Lagrer...':'Legg til crew'}</button>
+          </div>
+        </div>
+      )}
+
+      {bulkOpen && (
+        <div style={s.overlay} onClick={() => setBulkOpen(false)}>
+          <div style={{...s.modal, maxWidth: 420}} onClick={e => e.stopPropagation()}>
+            <button style={s.closeBtn} onClick={() => setBulkOpen(false)}>✕</button>
+            <div style={{fontSize:20,fontWeight:700,marginBottom:6,color:'#1A1B2E'}}>☑ Book {selectedCrew.length} crew</div>
+            <div style={{fontSize:13,color:'#6B7280',marginBottom:20}}>
+              {selectedCrew.map(id => crew.find(c => c.id === id)?.name).join(', ')}
+            </div>
+            <div style={s.formRow2}>
+              <div>
+                <label style={s.formLabel}>Fra dato *</label>
+                <input style={s.formInput} type="date" value={bulkFrom} onChange={e => setBulkFrom(e.target.value)} />
+              </div>
+              <div>
+                <label style={s.formLabel}>Til dato *</label>
+                <input style={s.formInput} type="date" value={bulkTo} onChange={e => setBulkTo(e.target.value)} />
+              </div>
+            </div>
+            <div style={{marginBottom:16}}>
+              <label style={s.formLabel}>Prosjekt / arrangement *</label>
+              <input style={s.formInput} value={bulkProject} onChange={e => setBulkProject(e.target.value)} placeholder="f.eks. Telenor konferanse" autoFocus />
+            </div>
+            <div style={{marginBottom:20}}>
+              <label style={s.formLabel}>Status</label>
+              <select style={s.formInput} value={bulkStatus} onChange={e => setBulkStatus(e.target.value)}>
+                <option value="booked">Booket</option>
+                <option value="requested">Forespurt</option>
+                <option value="unavailable">Ikke tilgjengelig</option>
+              </select>
+            </div>
+            {bulkFrom && bulkTo && bulkProject && (
+              <div style={{fontSize:13,color:'#6B7280',marginBottom:16,background:'#EEF2FF',padding:'10px 14px',borderRadius:8}}>
+                📅 {new Date(bulkFrom).toLocaleDateString('nb-NO')} — {new Date(bulkTo).toLocaleDateString('nb-NO')} · {Math.ceil((new Date(bulkTo)-new Date(bulkFrom))/(1000*60*60*24))+1} dager · {selectedCrew.length} crew
+              </div>
+            )}
+            <button style={s.submitBtn} onClick={saveBulkBooking} disabled={bulkSaving || !bulkFrom || !bulkTo || !bulkProject}>
+              {bulkSaving ? 'Booker...' : `Book ${selectedCrew.length} crew`}
+            </button>
           </div>
         </div>
       )}
