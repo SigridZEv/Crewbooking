@@ -443,12 +443,6 @@ export default function BookingPage({ user }) {
             <button style={{...s.tab, ...(view==='cal'?s.tabActive:{})}} onClick={() => setView('cal')}>Kalender</button>
             <button style={{...s.tab, ...(view==='crew'?s.tabActive:{})}} onClick={() => setView('crew')}>Crew</button>
           </div>
-          <button style={{...s.changePassBtn, background: bulkMode ? '#EEF2FF' : '#fff', color: bulkMode ? '#3B5BDB' : '#6B7280', fontWeight: bulkMode ? 700 : 400}} onClick={() => { setBulkMode(!bulkMode); setSelectedCrew([]) }}>
-            {bulkMode ? `✓ ${selectedCrew.length} valgt` : '☑ Velg flere'}
-          </button>
-          {bulkMode && selectedCrew.length > 0 && (
-            <button style={{...s.addBtn, padding:'9px 14px',fontSize:13}} onClick={() => setBulkOpen(true)}>Book {selectedCrew.length} crew</button>
-          )}
           <button style={s.changePassBtn} onClick={() => { setSettingName(true); setNameInputVal(userName) }}>👤 {userName || 'Sett navn'}</button>
           <button style={s.changePassBtn} onClick={() => { setChangePasswordOpen(true); setPasswordError(''); setPasswordSuccess(false) }}>🔑 Bytt passord</button>
           <button style={s.logoutBtn} onClick={logout}>Logg ut</button>
@@ -503,7 +497,22 @@ export default function BookingPage({ user }) {
           <div style={s.tableWrap}>
             <table style={s.table}>
               <thead><tr>
-                <th style={{...s.th,textAlign:'left',minWidth:150}}>Crew</th>
+                <th style={{...s.th,textAlign:'left',minWidth:150}}>
+                  <div style={{display:'flex',flexDirection:'column',alignItems:'flex-start',gap:4}}>
+                    <span>CREW</span>
+                    <div style={{display:'flex',alignItems:'center',gap:8}}>
+                      <button style={{fontSize:11,fontWeight:600,border:'none',background:'none',cursor:'pointer',color:bulkMode?'#3B5BDB':'#9CA3AF',fontFamily:"'Avenir', 'Avenir Next', 'Century Gothic', 'Nunito', sans-serif",padding:0,textTransform:'none',letterSpacing:0}}
+                        onClick={() => { setBulkMode(!bulkMode); setSelectedCrew([]) }}>
+                        {bulkMode ? `☑ ${selectedCrew.length} valgt` : '☐ Velg flere'}
+                      </button>
+                      {bulkMode && selectedCrew.length > 0 && (
+                        <button style={{...s.addBtn,padding:'3px 10px',fontSize:11}} onClick={() => setBulkOpen(true)}>
+                          Book {selectedCrew.length}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </th>
                 {days.map(d => <th key={dk(d)} style={{...s.th, background: filterDay===dk(d)?'#f0f7ff':undefined}}>{fmtDay(d)}</th>)}
               </tr></thead>
               <tbody>
