@@ -48,6 +48,8 @@ export default function BookingPage({ user }) {
   const [searchCal, setSearchCal] = useState('')
   const [filterAvail, setFilterAvail] = useState('')
   const [filterDay, setFilterDay] = useState('')
+  const [filterFrom, setFilterFrom] = useState('')
+  const [filterTo, setFilterTo] = useState('')
   const [searchCrew, setSearchCrew] = useState('')
   const [profileOpen, setProfileOpen] = useState(null)
   const [changeTarget, setChangeTarget] = useState(null)
@@ -287,9 +289,26 @@ export default function BookingPage({ user }) {
 
   const days = getWeekDates(weekOffset)
 
+  function getDatesInRange(from, to) {
+    if (!from || !to) return []
+    const result = []
+    let cur = new Date(from)
+    const end = new Date(to)
+    while (cur <= end) {
+      result.push(cur.toISOString().slice(0, 10))
+      cur.setDate(cur.getDate() + 1)
+    }
+    return result
+  }
+
+  const rangeDates = getDatesInRange(filterFrom, filterTo)
+
   const filteredCal = crew.filter(c => {
     if (searchCal && !c.name.toLowerCase().includes(searchCal.toLowerCase())) return false
-    if (filterAvail && filterDay) {
+    if (filterAvail && filterFrom && filterTo && rangeDates.length > 0) {
+      const allMatch = rangeDates.every(date => getStatus(c.id, date) === filterAvail)
+      if (!allMatch) return false
+    } else if (filterAvail && filterDay) {
       if (getStatus(c.id, filterDay) !== filterAvail) return false
     } else if (filterAvail) {
       if (!days.some(d => getStatus(c.id, dk(d)) === filterAvail)) return false
@@ -329,14 +348,24 @@ export default function BookingPage({ user }) {
               <option value="requested">Forespurt</option>
               <option value="unavailable">Ikke tilgjengelig</option>
             </select>
-            <select style={s.select} value={filterDay} onChange={e => setFilterDay(e.target.value)}>
-              <option value="">Alle dager</option>
-              {days.map(d => <option key={dk(d)} value={dk(d)}>{fmtDay(d)}</option>)}
-            </select>
             <input style={s.search} value={searchCal} onChange={e => setSearchCal(e.target.value)} placeholder="Sok navn..." />
-            <button style={s.clearBtn} onClick={() => { setSearchCal(''); setFilterAvail(''); setFilterDay('') }}>Nullstill</button>
+            <button style={s.clearBtn} onClick={() => { setSearchCal(''); setFilterAvail(''); setFilterDay(''); setFilterFrom(''); setFilterTo('') }}>Nullstill</button>
           </div>
-          {filterAvail && filterDay && (
+          <div style={s.periodBar}>
+            <span style={{fontSize:12,color:'#888',whiteSpace:'nowrap'}}>Filtrer periode:</span>
+            <input style={s.dateInput} type="date" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} />
+            <span style={{fontSize:12,color:'#888'}}>til</span>
+            <input style={s.dateInput} type="date" value={filterTo} onChange={e => setFilterTo(e.target.value)} />
+            {filterFrom && filterTo && filterAvail && (
+              <span style={s.filterBadge}>
+                {filteredCal.length} {STATUS[filterAvail] ? STATUS[filterAvail].full.toLowerCase() : ''} i perioden
+              </span>
+            )}
+            {filterFrom && filterTo && !filterAvail && (
+              <span style={{fontSize:12,color:'#888',fontStyle:'italic'}}>Velg en status ovenfor for a filtrere</span>
+            )}
+          </div>
+          {filterAvail && filterDay && !filterFrom && (
             <div style={s.filterInfo}>
               Viser crew med status <strong>{STATUS[filterAvail].full}</strong> pa {days.find(d => dk(d) === filterDay) ? fmtDay(days.find(d => dk(d) === filterDay)) : filterDay} - {filteredCal.length} person(er)
             </div>
@@ -666,6 +695,9 @@ const s = {
   tab:{padding:'6px 14px',fontSize:13,border:'none',background:'transparent',color:'#888',borderRadius:6,cursor:'pointer',fontFamily:'inherit'},
   tabActive:{background:'#fff',color:'#1a1a18',border:'0.5px solid #d0cfc8'},
   filterBar:{display:'flex',gap:8,flexWrap:'wrap',marginBottom:'0.5rem',alignItems:'center'},
+  periodBar:{display:'flex',gap:8,flexWrap:'wrap',marginBottom:'0.75rem',alignItems:'center',padding:'10px 12px',background:'#f5f4f0',borderRadius:8},
+  dateInput:{fontSize:13,padding:'5px 8px',borderRadius:8,border:'0.5px solid #d0cfc8',background:'#fff',color:'#1a1a18',fontFamily:'inherit'},
+  filterBadge:{fontSize:12,fontWeight:500,color:'#0F6E56',background:'#E1F5EE',borderRadius:20,padding:'3px 10px',whiteSpace:'nowrap'},
   filterInfo:{fontSize:12,color:'#555',marginBottom:'0.75rem',padding:'6px 10px',background:'#f0f7ff',borderRadius:6},
   select:{fontSize:13,padding:'6px 10px',borderRadius:8,border:'0.5px solid #d0cfc8',background:'#fff',color:'#1a1a18',fontFamily:'inherit'},
   search:{fontSize:13,padding:'6px 10px',borderRadius:8,border:'0.5px solid #d0cfc8',background:'#fff',color:'#1a1a18',fontFamily:'inherit',minWidth:160},
