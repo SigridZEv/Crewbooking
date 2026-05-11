@@ -106,10 +106,6 @@ export default function BookingPage({ user }) {
   function getStatus(crewId, date) {
     const b = getBooking(crewId, date)
     if (b) return b.status
-    const seed = (crewId.charCodeAt(0) * 37 + parseInt(date.replace(/-/g, '').slice(-4))) % 7
-    if (seed < 2) return 'booked'
-    if (seed === 2) return 'requested'
-    if (seed === 5) return 'unavailable'
     return 'free'
   }
 
