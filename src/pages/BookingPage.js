@@ -810,6 +810,7 @@ const s = {
   brand:{fontSize:11,fontWeight:700,color:'#4C6EF5',letterSpacing:'0.15em',textTransform:'uppercase'},
   title:{fontSize:28,fontWeight:700,margin:0,letterSpacing:'-0.02em',color:'#1A1B2E'},
   addBtn:{padding:'10px 20px',fontSize:14,fontWeight:600,borderRadius:8,border:'none',background:'linear-gradient(135deg, #3B5BDB, #7048E8)',color:'#fff',cursor:'pointer',fontFamily:"'Avenir', 'Avenir Next', 'Century Gothic', 'Nunito', sans-serif",whiteSpace:'nowrap',boxShadow:'0 2px 8px rgba(76,110,245,0.3)'},
+  changePassBtn:{padding:'10px 18px',fontSize:13,borderRadius:8,border:'1px solid #E5E7F0',background:'#fff',color:'#6B7280',cursor:'pointer',fontFamily:"'Avenir', 'Avenir Next', 'Century Gothic', 'Nunito', sans-serif"},
   logoutBtn:{padding:'10px 18px',fontSize:13,borderRadius:8,border:'1px solid #E5E7F0',background:'#fff',color:'#6B7280',cursor:'pointer',fontFamily:"'Avenir', 'Avenir Next', 'Century Gothic', 'Nunito', sans-serif"},
   tabs:{display:'flex',gap:2,background:'#E8ECF8',borderRadius:8,padding:3},
   tab:{padding:'8px 18px',fontSize:13,fontWeight:500,border:'none',background:'transparent',color:'#6B7280',borderRadius:6,cursor:'pointer',fontFamily:"'Avenir', 'Avenir Next', 'Century Gothic', 'Nunito', sans-serif"},
