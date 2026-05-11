@@ -68,6 +68,9 @@ export default function BookingPage({ user }) {
   const [saving, setSaving] = useState(false)
   const [pendingStatus, setPendingStatus] = useState(null)
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
+  const [userName, setUserName] = useState('')
+  const [settingName, setSettingName] = useState(false)
+  const [nameInputVal, setNameInputVal] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordError, setPasswordError] = useState('')
@@ -111,6 +114,11 @@ export default function BookingPage({ user }) {
   }, [weekOffset])
 
   useEffect(() => { loadCrew() }, [loadCrew])
+  useEffect(() => {
+    const saved = localStorage.getItem('zcrew_username')
+    if (saved) setUserName(saved)
+    else setSettingName(true)
+  }, [])
   useEffect(() => { loadBookings() }, [loadBookings])
 
   function getBooking(crewId, date) { return bookings[crewId + '_' + date] || null }
@@ -125,7 +133,7 @@ export default function BookingPage({ user }) {
     setChangeTarget({ crew: c, date, dateLabel })
     setPendingStatus(null)
     setProjectInput('')
-    setBookedByInput('')
+    setBookedByInput(userName)
   }
 
   function openProfile(c) {
@@ -229,6 +237,14 @@ export default function BookingPage({ user }) {
     setProfileOpen(prev => ({ ...prev, notes: notesInput }))
     setEditingNotes(false)
     showToast('Kommentar oppdatert')
+  }
+
+  function saveUserName() {
+    if (!nameInputVal.trim()) return
+    localStorage.setItem('zcrew_username', nameInputVal.trim())
+    setUserName(nameInputVal.trim())
+    setSettingName(false)
+    showToast('Navn lagret: ' + nameInputVal.trim())
   }
 
   async function saveNewPassword() {
@@ -385,6 +401,7 @@ export default function BookingPage({ user }) {
             <button style={{...s.tab, ...(view==='cal'?s.tabActive:{})}} onClick={() => setView('cal')}>Kalender</button>
             <button style={{...s.tab, ...(view==='crew'?s.tabActive:{})}} onClick={() => setView('crew')}>Crew</button>
           </div>
+          <button style={s.changePassBtn} onClick={() => { setSettingName(true); setNameInputVal(userName) }}>👤 {userName || 'Sett navn'}</button>
           <button style={s.changePassBtn} onClick={() => { setChangePasswordOpen(true); setPasswordError(''); setPasswordSuccess(false) }}>🔑 Bytt passord</button>
           <button style={s.logoutBtn} onClick={logout}>Logg ut</button>
         </div>
@@ -771,6 +788,19 @@ export default function BookingPage({ user }) {
             <p style={{fontSize:11,color:'#9CA3AF',marginBottom:12}}>* Obligatorisk felt</p>
             {addError && <p style={{fontSize:13,color:'#C92A2A',marginBottom:12,background:'#FFF0F0',padding:'8px 12px',borderRadius:7}}>{addError}</p>}
             <button style={s.submitBtn} onClick={addCrew} disabled={saving}>{saving?'Lagrer...':'Legg til crew'}</button>
+          </div>
+        </div>
+      )}
+
+      {settingName && (
+        <div style={s.overlay} onClick={() => { if(userName) setSettingName(false) }}>
+          <div style={{...s.modal, maxWidth: 380}} onClick={e => e.stopPropagation()}>
+            {userName && <button style={s.closeBtn} onClick={() => setSettingName(false)}>✕</button>}
+            <div style={{fontSize:20,fontWeight:700,marginBottom:8,color:'#1A1B2E'}}>👤 Ditt navn</div>
+            <div style={{fontSize:13,color:'#6B7280',marginBottom:20}}>Skriv inn navnet ditt slik det skal vises når du booker crew.</div>
+            <label style={s.formLabel}>Navn</label>
+            <input style={{...s.formInput, marginBottom:16}} value={nameInputVal} onChange={e => setNameInputVal(e.target.value)} placeholder="f.eks. Sigrid Flesjå" autoFocus onKeyDown={e => { if(e.key==='Enter') saveUserName() }} />
+            <button style={s.submitBtn} onClick={saveUserName}>Lagre navn</button>
           </div>
         </div>
       )}
