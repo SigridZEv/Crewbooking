@@ -18,6 +18,10 @@ const COLORS = [
   { bg: '#F5C4B3', text: '#712B13' },
 ]
 
+const ALLERGIES = ['Ingen', 'Melk / laktose', 'Gluten / hvete', 'Nøtter', 'Egg', 'Fisk', 'Skalldyr', 'Soya', 'Sesamfrø', 'Annet']
+
+const ALLERGIES = ['Ingen', 'Melk/Laktose', 'Egg', 'Hvete/Gluten', 'Soya', 'Nøtter', 'Skalldyr', 'Fisk', 'Sesamfrø', 'Annet']
+
 const STATUS = {
   free:        { label: 'L', full: 'Ledig',             bg: '#E1F5EE', c: '#0F6E56' },
   booked:      { label: 'B', full: 'Booket',            bg: '#FCEBEB', c: '#A32D2D' },
@@ -47,6 +51,7 @@ function dk(d) {
 
 export default function BookingPage({ user }) {
   const [view, setView] = useState('cal')
+  const [myProjects, setMyProjects] = useState({})
   const [crew, setCrew] = useState([])
   const [bookings, setBookings] = useState({})
   const [weekOffset, setWeekOffset] = useState(0)
@@ -92,6 +97,8 @@ export default function BookingPage({ user }) {
   const [bioInput, setBioInput] = useState('')
   const [allergyInput, setAllergyInput] = useState('')
   const [editingAllergy, setEditingAllergy] = useState(false)
+  const [editingCertificate, setEditingCertificate] = useState(false)
+  const [certificateInput, setCertificateInput] = useState('')
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState('')
   const [profileBookings, setProfileBookings] = useState([])
@@ -156,6 +163,9 @@ export default function BookingPage({ user }) {
     setAllergyInput(allergySk ? allergySk.name.replace('Allergi: ', '').replace('Allergi:', '') : '')
     setEditingName(false)
     setNameInput(c.name)
+    setEditingCertificate(false)
+    const certSk = (c.skills || []).find(s => s.name.startsWith('Sertifikat:'))
+    setCertificateInput(certSk ? certSk.name.replace('Sertifikat: ', '').replace('Sertifikat:', '').trim() : '')
   }
 
   async function saveRate() {
@@ -218,6 +228,36 @@ export default function BookingPage({ user }) {
     setProfileOpen(prev => ({ ...prev, name: newName, initials }))
     setEditingName(false)
     showToast('Navn oppdatert')
+  }
+
+  async function saveCertificate() {
+    if (!profileOpen) return
+    const c = profileOpen
+    const skills = c.skills || []
+    const existingCert = skills.find(s => s.name.startsWith('Sertifikat:'))
+    const newVal = certificateInput.trim()
+    if (existingCert) {
+      if (newVal) {
+        await supabase.from('skills').update({ name: 'Sertifikat: ' + newVal }).eq('id', existingCert.id)
+        const updated = skills.map(s => s.id === existingCert.id ? { ...s, name: 'Sertifikat: ' + newVal } : s)
+        setCrew(prev => prev.map(cr => cr.id === c.id ? { ...cr, skills: updated } : cr))
+        setProfileOpen(prev => ({ ...prev, skills: updated }))
+      } else {
+        await supabase.from('skills').delete().eq('id', existingCert.id)
+        const updated = skills.filter(s => s.id !== existingCert.id)
+        setCrew(prev => prev.map(cr => cr.id === c.id ? { ...cr, skills: updated } : cr))
+        setProfileOpen(prev => ({ ...prev, skills: updated }))
+      }
+    } else if (newVal) {
+      const { data } = await supabase.from('skills').insert({ crew_id: c.id, name: 'Sertifikat: ' + newVal, comment: '' }).select().single()
+      if (data) {
+        const updated = [...skills, data]
+        setCrew(prev => prev.map(cr => cr.id === c.id ? { ...cr, skills: updated } : cr))
+        setProfileOpen(prev => ({ ...prev, skills: updated }))
+      }
+    }
+    setEditingCertificate(false)
+    showToast('Sertifikat oppdatert')
   }
 
   async function saveBirthdate() {
@@ -375,6 +415,23 @@ export default function BookingPage({ user }) {
     setEditingComment(null)
   }
 
+  async function loadMyProjects() {
+    const { data } = await supabase
+      .from('bookings')
+      .select('*, crew(*)')
+      .eq('booked_by', userName)
+      .not('project', 'eq', '')
+      .order('date', { ascending: true })
+    if (data) {
+      const grouped = {}
+      data.forEach(b => {
+        if (!grouped[b.project]) grouped[b.project] = []
+        grouped[b.project].push(b)
+      })
+      setMyProjects(grouped)
+    }
+  }
+
   async function logout() { await supabase.auth.signOut() }
 
   const days = getWeekDates(weekOffset)
@@ -442,6 +499,8 @@ export default function BookingPage({ user }) {
           <div style={s.tabs}>
             <button style={{...s.tab, ...(view==='cal'?s.tabActive:{})}} onClick={() => setView('cal')}>Kalender</button>
             <button style={{...s.tab, ...(view==='crew'?s.tabActive:{})}} onClick={() => setView('crew')}>Crew</button>
+            <button style={{...s.tab, ...(view==='mine'?s.tabActive:{})}} onClick={() => { setView('mine'); loadMyProjects() }}>Mine prosjekter</button>
+            <button style={{...s.tab, ...(view==='mine'?s.tabActive:{})}} onClick={() => { setView('mine'); loadMyProjects() }}>Mine prosjekter</button>
           </div>
           <button style={s.changePassBtn} onClick={() => { setSettingName(true); setNameInputVal(userName) }}>👤 {userName || 'Sett navn'}</button>
           <button style={s.changePassBtn} onClick={() => { setChangePasswordOpen(true); setPasswordError(''); setPasswordSuccess(false) }}>🔑 Bytt passord</button>
@@ -598,6 +657,64 @@ export default function BookingPage({ user }) {
         </div>
       )}
 
+      {/* Mine prosjekter view */}
+      {view === 'mine' && (
+        <div>
+          {Object.keys(myProjects).length === 0 ? (
+            <div style={s.empty}>Du har ikke booket noen crew ennå. Bookinger du gjør vil vises her.</div>
+          ) : (
+            Object.entries(myProjects).map(([project, bookings]) => {
+              const crewIds = [...new Set(bookings.map(b => b.crew_id))]
+              const crewMembers = crewIds.map(id => crew.find(c => c.id === id)).filter(Boolean)
+              const dates = [...new Set(bookings.map(b => b.date))].sort()
+              const allergies = crewMembers
+                .map(c => (c.skills || []).find(s => s.name.startsWith('Allergi:')))
+                .filter(Boolean)
+                .map(s => s.name.replace('Allergi: ', '').replace('Allergi:', '').trim())
+                .filter(a => a && a !== 'Ingen')
+              return (
+                <div key={project} style={{background:'#fff',borderRadius:12,border:'1px solid #E5E7F0',padding:'1.5rem',marginBottom:16}}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
+                    <div style={{fontSize:20,fontWeight:700,color:'#1A1B2E'}}>{project}</div>
+                    <div style={{fontSize:13,color:'#6B7280'}}>{new Date(dates[0]).toLocaleDateString('nb-NO',{day:'numeric',month:'long'})} {dates.length > 1 ? '— ' + new Date(dates[dates.length-1]).toLocaleDateString('nb-NO',{day:'numeric',month:'long',year:'numeric'}) : new Date(dates[0]).toLocaleDateString('nb-NO',{year:'numeric'})}</div>
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
+                    <div style={{background:'#F8F9FE',borderRadius:10,padding:'12px 14px',border:'1px solid #E5E7F0'}}>
+                      <div style={{fontSize:11,fontWeight:700,color:'#6B7280',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>Crew ({crewMembers.length})</div>
+                      {crewMembers.map(c => {
+                        const col = COLORS[c.color_index % COLORS.length]
+                        return <div key={c.id} style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+                          <div style={{width:28,height:28,borderRadius:'50%',background:col.bg,color:col.text,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,flexShrink:0}}>{c.initials}</div>
+                          <span style={{fontSize:13,color:'#1A1B2E',fontWeight:500}}>{c.name}</span>
+                        </div>
+                      })}
+                    </div>
+                    <div style={{background:'#F8F9FE',borderRadius:10,padding:'12px 14px',border:'1px solid #E5E7F0'}}>
+                      <div style={{fontSize:11,fontWeight:700,color:'#6B7280',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>Allergier / kosthold</div>
+                      {allergies.length === 0 ? (
+                        <div style={{fontSize:13,color:'#9CA3AF',fontStyle:'italic'}}>Ingen registrerte allergier</div>
+                      ) : (
+                        allergies.map((a,i) => {
+                          const crewWithAllergy = crewMembers.find(c => (c.skills||[]).find(s => s.name.includes(a)))
+                          return <div key={i} style={{fontSize:13,marginBottom:4}}>
+                            <span style={{color:'#A32D2D',fontWeight:600}}>{a}</span>
+                            {crewWithAllergy && <span style={{color:'#9CA3AF',fontSize:11}}> — {crewWithAllergy.name}</span>}
+                          </div>
+                        })
+                      )}
+                    </div>
+                  </div>
+                  <div style={{fontSize:11,fontWeight:700,color:'#6B7280',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>Datoer</div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                    {dates.map(d => <span key={d} style={{background:'#EEF2FF',color:'#3B5BDB',borderRadius:20,padding:'4px 12px',fontSize:12,fontWeight:500}}>{new Date(d).toLocaleDateString('nb-NO',{weekday:'short',day:'numeric',month:'short'})}</span>)}
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+      )}
+
       {/* Profile modal */}
       {profileOpen && (
         <div style={s.overlay} onClick={() => setProfileOpen(null)}>
@@ -614,20 +731,25 @@ export default function BookingPage({ user }) {
               const pastBookings = profileBookings.filter(b => b.date < today && b.project)
               const totalJobs = profileBookings.filter(b => b.status === 'booked').length
               return <>
-                <div style={{...s.modalAvatar,background:col.bg,color:col.text}}>{c.initials}</div>
-                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-                  {editingName ? (
-                    <div style={{display:'flex',gap:8,flex:1}}>
-                      <input style={{...s.formInput,flex:1,fontSize:16}} value={nameInput} onChange={e => setNameInput(e.target.value)} onKeyDown={e => { if(e.key==='Enter') saveName() }} autoFocus />
-                      <button style={s.miniBtn} onClick={saveName}>Lagre</button>
-                      <button style={s.clearBtn} onClick={() => setEditingName(false)}>Avbryt</button>
-                    </div>
-                  ) : (
-                    <>
-                      <div style={{fontSize:18,fontWeight:500,color:'#1a1a18',flex:1}}>{c.name}</div>
-                      <button style={s.editBtn} onClick={() => { setEditingName(true); setNameInput(c.name) }}>Rediger navn</button>
-                    </>
-                  )}
+                <div style={{background:'linear-gradient(135deg,#3B5BDB,#7048E8)',margin:'-2rem -2rem 1.25rem',padding:'24px 24px 20px',borderRadius:'14px 14px 0 0'}}>
+                  <div style={{width:60,height:60,borderRadius:'50%',background:'rgba(255,255,255,0.25)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,fontWeight:700,color:'#fff',marginBottom:12}}>{c.initials}</div>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
+                    {editingName ? (
+                      <div style={{display:'flex',gap:8,flex:1}}>
+                        <input autoFocus style={{flex:1,fontSize:16,padding:'6px 10px',borderRadius:8,border:'1px solid rgba(255,255,255,0.4)',background:'rgba(255,255,255,0.15)',color:'#fff',fontFamily:"'Avenir','Avenir Next',sans-serif",outline:'none'}} value={nameInput} onChange={e => setNameInput(e.target.value)} onKeyDown={e => { if(e.key==='Enter') saveName() }} />
+                        <button style={{...s.miniBtn,background:'rgba(255,255,255,0.2)',border:'1px solid rgba(255,255,255,0.4)',color:'#fff'}} onClick={saveName}>Lagre</button>
+                        <button style={{...s.clearBtn,color:'rgba(255,255,255,0.7)'}} onClick={() => setEditingName(false)}>Avbryt</button>
+                      </div>
+                    ) : (
+                      <div style={{fontSize:22,fontWeight:700,color:'#fff'}}>{c.name}</div>
+                    )}
+                    {!editingName && <button style={{fontSize:11,color:'rgba(255,255,255,0.8)',background:'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.3)',borderRadius:6,padding:'4px 10px',cursor:'pointer',fontWeight:500}} onClick={() => { setEditingName(true); setNameInput(c.name) }}>Rediger navn</button>}
+                  </div>
+                  <div style={{fontSize:15,color:'rgba(255,255,255,0.85)',marginTop:6,fontWeight:500}}>{c.rate} kr/t</div>
+                  <div style={{display:'flex',gap:24,marginTop:14}}>
+                    <div><div style={{fontSize:10,color:'rgba(255,255,255,0.65)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:2}}>Ledige dager</div><div style={{fontSize:22,fontWeight:700,color:'#fff'}}>{freeDays} av 7</div></div>
+                    <div><div style={{fontSize:10,color:'rgba(255,255,255,0.65)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:2}}>Gjønnomførte jobber</div><div style={{fontSize:22,fontWeight:700,color:'#fff'}}>{totalJobs}</div></div>
+                  </div>
                 </div>
 
                 {/* Editable rate */}
@@ -655,13 +777,40 @@ export default function BookingPage({ user }) {
                     {!editingAllergy && <button style={s.editBtn} onClick={() => setEditingAllergy(true)}>Rediger</button>}
                   </div>
                   {editingAllergy ? (
-                    <div style={{display:'flex',gap:8}}>
-                      <input style={{...s.formInput,flex:1}} value={allergyInput} onChange={e => setAllergyInput(e.target.value)} placeholder="f.eks. Laktose, gluten..." autoFocus onKeyDown={e => { if(e.key==='Enter') saveAllergy() }} />
-                      <button style={s.miniBtn} onClick={saveAllergy}>Lagre</button>
-                      <button style={s.clearBtn} onClick={() => setEditingAllergy(false)}>Avbryt</button>
+                    <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                      <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                        {ALLERGIES.map(a => (
+                          <button key={a} onClick={() => setAllergyInput(a === 'Ingen' ? '' : (allergyInput ? allergyInput + ', ' + a : a))}
+                            style={{padding:'5px 12px',borderRadius:20,fontSize:12,cursor:'pointer',fontFamily:"'Avenir','Avenir Next',sans-serif",fontWeight:500,border:'1px solid #C7D0F0',background:allergyInput.includes(a)?'#3B5BDB':'#EEF2FF',color:allergyInput.includes(a)?'#fff':'#3B5BDB'}}>
+                            {a}
+                          </button>
+                        ))}
+                      </div>
+                      <input style={{...s.formInput}} value={allergyInput} onChange={e => setAllergyInput(e.target.value)} placeholder="Eller skriv fritt..." onKeyDown={e => { if(e.key==='Enter') saveAllergy() }} />
+                      <div style={{display:'flex',gap:8}}>
+                        <button style={s.miniBtn} onClick={saveAllergy}>Lagre</button>
+                        <button style={s.clearBtn} onClick={() => setEditingAllergy(false)}>Avbryt</button>
+                      </div>
                     </div>
                   ) : (
                     <div style={{fontSize:13,color: allergyInput ? '#A32D2D' : '#aaa'}}>{allergyInput || 'Ingen registrert'}</div>
+                  )}
+                </div>
+
+                {/* Sertifikat */}
+                <div style={s.msec}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+                    <div style={s.msecHdr}>Sertifikat</div>
+                    {!editingCertificate && <button style={s.editBtn} onClick={() => setEditingCertificate(true)}>Rediger</button>}
+                  </div>
+                  {editingCertificate ? (
+                    <div style={{display:'flex',gap:8}}>
+                      <input style={{...s.formInput,flex:1}} value={certificateInput} onChange={e => setCertificateInput(e.target.value)} placeholder="f.eks. JA, Klasse B, Truck..." autoFocus onKeyDown={e => { if(e.key==='Enter') saveCertificate() }} />
+                      <button style={s.miniBtn} onClick={saveCertificate}>Lagre</button>
+                      <button style={s.clearBtn} onClick={() => setEditingCertificate(false)}>Avbryt</button>
+                    </div>
+                  ) : (
+                    <div style={{fontSize:13,color: certificateInput ? '#1A1B2E' : '#aaa'}}>{certificateInput || 'Ikke registrert'}</div>
                   )}
                 </div>
 
@@ -785,6 +934,71 @@ export default function BookingPage({ user }) {
       )}
 
       {/* Status change modal */}
+      {view === 'mine' && (
+        <div>
+          <div style={{marginBottom:'1rem',fontSize:13,color:'#6B7280'}}>
+            Viser prosjekter du har booket som <strong>{userName || 'deg'}</strong>
+          </div>
+          {loadingProjects && <div style={s.empty}>Laster prosjekter...</div>}
+          {!loadingProjects && myProjects.length === 0 && (
+            <div style={s.empty}>Ingen prosjekter funnet. Bookinger du gjør vises her.</div>
+          )}
+          {myProjects.map((p, i) => {
+            const crewList = p.bookings.map(b => b.crew).filter(Boolean)
+            const uniqueCrew = crewList.filter((c, idx) => crewList.findIndex(x => x.id === c.id) === idx)
+            const dates = p.bookings.map(b => b.date).sort()
+            const fromDate = new Date(dates[0]).toLocaleDateString('nb-NO', {day:'numeric',month:'long'})
+            const toDate = new Date(dates[dates.length-1]).toLocaleDateString('nb-NO', {day:'numeric',month:'long',year:'numeric'})
+            // Collect allergies
+            const allergies = []
+            uniqueCrew.forEach(c => {
+              const fullCrew = crew.find(x => x.id === c.id)
+              const allergy = (fullCrew?.skills || []).find(s => s.name.startsWith('Allergi:'))
+              if (allergy) allergies.push({ name: c.name, allergy: allergy.name.replace('Allergi: ', '').replace('Allergi:', '').trim() })
+            })
+            return (
+              <div key={i} style={{background:'#fff',borderRadius:12,border:'1px solid #E5E7F0',padding:'1.5rem',marginBottom:16,boxShadow:'0 1px 4px rgba(59,91,219,0.05)'}}>
+                <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:12}}>
+                  <div>
+                    <div style={{fontSize:18,fontWeight:700,color:'#1A1B2E',marginBottom:4}}>{p.project}</div>
+                    <div style={{fontSize:13,color:'#6B7280'}}>📅 {fromDate}{dates.length > 1 ? ' — ' + toDate : ''}</div>
+                  </div>
+                  <div style={{fontSize:12,fontWeight:600,color:'#3B5BDB',background:'#EEF2FF',borderRadius:20,padding:'4px 12px'}}>{uniqueCrew.length} crew</div>
+                </div>
+                <div style={{marginBottom:12}}>
+                  <div style={{fontSize:11,fontWeight:700,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:8}}>Crew</div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+                    {uniqueCrew.map((c, j) => {
+                      const fullCrew = crew.find(x => x.id === c.id)
+                      const col = COLORS[(fullCrew?.color_index || j) % COLORS.length]
+                      return (
+                        <div key={j} style={{display:'flex',alignItems:'center',gap:6,background:'#F8F9FE',borderRadius:8,padding:'6px 10px',border:'1px solid #E5E7F0'}}>
+                          <div style={{width:24,height:24,borderRadius:'50%',background:col.bg,color:col.text,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700}}>{c.initials}</div>
+                          <span style={{fontSize:13,fontWeight:500,color:'#1A1B2E'}}>{c.name}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+                {allergies.length > 0 && (
+                  <div style={{background:'#FFF8F0',borderRadius:8,padding:'12px 14px',border:'1px solid #FFD8A8'}}>
+                    <div style={{fontSize:11,fontWeight:700,color:'#854F0B',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:8}}>⚠️ Allergier / kosthold</div>
+                    {allergies.map((a, j) => (
+                      <div key={j} style={{fontSize:13,color:'#854F0B',marginBottom:4}}>
+                        <strong>{a.name}:</strong> {a.allergy}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {allergies.length === 0 && (
+                  <div style={{fontSize:12,color:'#9CA3AF'}}>✅ Ingen registrerte allergier</div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       {changeTarget && (
         <div style={s.overlay} onClick={() => setChangeTarget(null)}>
           <div style={{...s.modal,maxWidth:340}} onClick={e => e.stopPropagation()}>
