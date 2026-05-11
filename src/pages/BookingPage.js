@@ -63,12 +63,12 @@ export default function BookingPage({ user }) {
   const [userName, setUserName] = useState(localStorage.getItem('zcrew_username') || '')
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [myProfileOpen, setMyProfileOpen] = useState(false)
+  const [myProfileForm, setMyProfileForm] = useState({ title: '', phone: '', email: '' })
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordError, setPasswordError] = useState('')
   const [passwordSuccess, setPasswordSuccess] = useState(false)
-  const [myProfileForm, setMyProfileForm] = useState({ title: '', phone: '', email: '' })
   const [pendingStatus, setPendingStatus] = useState(null)
   const [projectInput, setProjectInput] = useState('')
   const [bookedByInput, setBookedByInput] = useState('')
@@ -271,6 +271,12 @@ export default function BookingPage({ user }) {
     showToast('Sertifikat oppdatert')
   }
 
+  function saveMyProfile() {
+    localStorage.setItem('zcrew_profile', JSON.stringify(myProfileForm))
+    setMyProfileOpen(false)
+    showToast('Profil oppdatert!')
+  }
+
   async function saveNewPassword() {
     setPasswordError('')
     if (newPassword.length < 6) { setPasswordError('Passordet må være minst 6 tegn.'); return }
@@ -281,12 +287,6 @@ export default function BookingPage({ user }) {
     setNewPassword('')
     setConfirmPassword('')
     setTimeout(() => { setChangePasswordOpen(false); setPasswordSuccess(false) }, 2000)
-  }
-
-  function saveMyProfile() {
-    localStorage.setItem('zcrew_profile', JSON.stringify(myProfileForm))
-    setMyProfileOpen(false)
-    showToast('Profil oppdatert!')
   }
 
   async function confirmStatus() {
@@ -517,7 +517,7 @@ export default function BookingPage({ user }) {
                     </div>
                   ) : (
                     <>
-                      <div style={{fontSize:22,fontWeight:700,color:'#1a1a18',flex:1}}>{c.name}</div>
+                      <div style={{fontSize:18,fontWeight:500,color:'#1a1a18',flex:1}}>{c.name}</div>
                       <button style={s.editBtn} onClick={() => { setEditingName(true); setNameInput(c.name) }}>Rediger navn</button>
                     </>
                   )}
@@ -562,27 +562,6 @@ export default function BookingPage({ user }) {
                     <button style={s.miniBtn} onClick={addSkill}>Legg til</button>
                   </div>
                 </div>
-              </>
-            })()}
-          </div>
-        </div>
-      )}
-
-      {/* Status change modal */}
-      {changeTarget && (
-        <div style={s.overlay} onClick={() => setChangeTarget(null)}>
-          <div style={{...s.modal,maxWidth:340}} onClick={e => e.stopPropagation()}>
-            <button style={s.closeBtn} onClick={() => setChangeTarget(null)}>X</button>
-            <div style={{fontSize:15,fontWeight:500,marginBottom:2,color:'#1a1a18'}}>{changeTarget.crew.name}</div>
-            <div style={{fontSize:12,color:'#888',marginBottom:16}}>{changeTarget.dateLabel}</div>
-            {!pendingStatus ? <>
-              {Object.entries(STATUS).map(([k,v]) => <button key={k} style={s.statusOpt} onClick={() => {
-                if (k === 'free' || k === 'unavailable') saveSimpleStatus(k)
-                else setPendingStatus(k)
-              }}>
-                <span style={{...s.dot,background:v.bg,border:'1px solid '+v.c,flexShrink:0}}/>{v.full}
-              </button>)}
-                </div>
                 <div style={s.msec}>
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
                     <div style={s.msecHdr}>Erfaringer/referanse</div>
@@ -590,7 +569,7 @@ export default function BookingPage({ user }) {
                   </div>
                   {editingNotes ? (
                     <div style={{display:'flex',flexDirection:'column',gap:8}}>
-                      <textarea style={{...s.formInput,resize:'vertical'}} rows={3} value={notesInput} onChange={e => setNotesInput(e.target.value)} placeholder='Erfaringer, referanser...' autoFocus />
+                      <textarea style={{...s.formInput,resize:'vertical'}} rows={3} value={notesInput} onChange={e => setNotesInput(e.target.value)} placeholder='Interne kommentarer...' autoFocus />
                       <div style={{display:'flex',gap:8}}>
                         <button style={s.miniBtn} onClick={saveNotes}>Lagre</button>
                         <button style={s.clearBtn} onClick={() => setEditingNotes(false)}>Avbryt</button>
@@ -631,7 +610,7 @@ export default function BookingPage({ user }) {
                       <button style={s.clearBtn} onClick={() => setEditingRate(false)}>Avbryt</button>
                     </div>
                   ) : (
-                    <div style={{fontSize:20,fontWeight:600,color:'#1a1a18'}}>{c.rate} kr<span style={{fontSize:13,fontWeight:400,color:'#888'}}>/t</span></div>
+                    <div style={{fontSize:24,fontWeight:500,color:'#1a1a18'}}>{c.rate} kr<span style={{fontSize:13,fontWeight:400,color:'#888'}}>/t</span></div>
                   )}
                 </div>
 
@@ -668,6 +647,7 @@ export default function BookingPage({ user }) {
                       <div style={{fontSize:13,color:c.location?'#1a1a18':'#aaa'}}>{c.location || 'Ikke registrert'}</div>
                     )}
                   </div>
+                </div>
                 {/* Editable allergy */}
                 <div style={s.msec}>
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
@@ -709,6 +689,26 @@ export default function BookingPage({ user }) {
                   </div>)}
                 </div>}
 
+              </>
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* Status change modal */}
+      {changeTarget && (
+        <div style={s.overlay} onClick={() => setChangeTarget(null)}>
+          <div style={{...s.modal,maxWidth:340}} onClick={e => e.stopPropagation()}>
+            <button style={s.closeBtn} onClick={() => setChangeTarget(null)}>X</button>
+            <div style={{fontSize:15,fontWeight:500,marginBottom:2,color:'#1a1a18'}}>{changeTarget.crew.name}</div>
+            <div style={{fontSize:12,color:'#888',marginBottom:16}}>{changeTarget.dateLabel}</div>
+            {!pendingStatus ? <>
+              {Object.entries(STATUS).map(([k,v]) => <button key={k} style={s.statusOpt} onClick={() => {
+                if (k === 'free' || k === 'unavailable') saveSimpleStatus(k)
+                else setPendingStatus(k)
+              }}>
+                <span style={{...s.dot,background:v.bg,border:'1px solid '+v.c,flexShrink:0}}/>{v.full}
+              </button>)}
             </> : <>
               <div style={{fontSize:13,color:'#888',marginBottom:12}}>{STATUS[pendingStatus].full} - fyll inn detaljer</div>
               <label style={s.formLabel}>Prosjekt / arrangement</label>
@@ -761,22 +761,10 @@ export default function BookingPage({ user }) {
               <div style={{fontSize:20,fontWeight:700,color:'#fff'}}>{userName || 'Din profil'}</div>
               {myProfileForm.title && <div style={{fontSize:14,color:'rgba(255,255,255,0.8)',marginTop:4}}>{myProfileForm.title}</div>}
             </div>
-            <div style={{marginBottom:14}}>
-              <label style={s.formLabel}>Navn</label>
-              <input style={s.formInput} value={userName} onChange={e => { setUserName(e.target.value); localStorage.setItem('zcrew_username', e.target.value) }} placeholder="Ditt navn" />
-            </div>
-            <div style={{marginBottom:14}}>
-              <label style={s.formLabel}>Tittel / rolle</label>
-              <input style={s.formInput} value={myProfileForm.title} onChange={e => setMyProfileForm(f => ({...f,title:e.target.value}))} placeholder="f.eks. Prosjektleder" />
-            </div>
-            <div style={{marginBottom:14}}>
-              <label style={s.formLabel}>Telefon</label>
-              <input style={s.formInput} type="tel" value={myProfileForm.phone} onChange={e => setMyProfileForm(f => ({...f,phone:e.target.value}))} placeholder="f.eks. 98765432" />
-            </div>
-            <div style={{marginBottom:20}}>
-              <label style={s.formLabel}>E-post</label>
-              <input style={s.formInput} type="email" value={myProfileForm.email} onChange={e => setMyProfileForm(f => ({...f,email:e.target.value}))} placeholder="navn@zevent.no" />
-            </div>
+            <div style={{marginBottom:14}}><label style={s.formLabel}>Navn</label><input style={s.formInput} value={userName} onChange={e => { setUserName(e.target.value); localStorage.setItem('zcrew_username', e.target.value) }} placeholder="Ditt navn" /></div>
+            <div style={{marginBottom:14}}><label style={s.formLabel}>Tittel / rolle</label><input style={s.formInput} value={myProfileForm.title} onChange={e => setMyProfileForm(f => ({...f,title:e.target.value}))} placeholder="f.eks. Prosjektleder" /></div>
+            <div style={{marginBottom:14}}><label style={s.formLabel}>Telefon</label><input style={s.formInput} type="tel" value={myProfileForm.phone} onChange={e => setMyProfileForm(f => ({...f,phone:e.target.value}))} placeholder="f.eks. 98765432" /></div>
+            <div style={{marginBottom:20}}><label style={s.formLabel}>E-post</label><input style={s.formInput} type="email" value={myProfileForm.email} onChange={e => setMyProfileForm(f => ({...f,email:e.target.value}))} placeholder="navn@zevent.no" /></div>
             <button style={s.submitBtn} onClick={saveMyProfile}>Lagre profil</button>
             <button style={{...s.submitBtn,marginTop:10,background:'none',border:'1px solid #C7D0F0',color:'#3B5BDB',boxShadow:'none'}} onClick={() => { setMyProfileOpen(false); setChangePasswordOpen(true) }}>🔑 Bytt passord</button>
           </div>
@@ -844,7 +832,7 @@ const s = {
   dayCell:{padding:'8px 6px',textAlign:'center',borderBottom:'0.5px solid #e0dfd8',borderLeft:'0.5px solid #e0dfd8',minWidth:110,verticalAlign:'top'},
   pill:{display:'inline-flex',alignItems:'center',justifyContent:'center',width:32,height:32,borderRadius:'50%',fontSize:11,cursor:'pointer',fontWeight:500,border:'none',fontFamily:'inherit'},
   projectLabel:{fontSize:10,color:'#444',lineHeight:1.4,marginTop:2,wordBreak:'break-word',maxWidth:100,textAlign:'center'},
-  bookedByLabel:{fontSize:9,color:'#888',lineHeight:1.3,textAlign:'center'},
+  bookedByLabel:{fontSize:9,color:'#aaa',lineHeight:1.3,textAlign:'center'},
   crewGrid:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:12},
   crewCard:{background:'#fff',borderRadius:12,border:'0.5px solid #e0dfd8',padding:'1.25rem',cursor:'pointer'},
   rate:{fontSize:20,fontWeight:500,color:'#1a1a18'},
@@ -854,25 +842,25 @@ const s = {
   modal:{background:'#fff',borderRadius:16,border:'0.5px solid #e0dfd8',padding:'1.5rem',width:'100%',maxWidth:480,position:'relative',maxHeight:'85vh',overflowY:'auto',margin:'0 1rem'},
   closeBtn:{position:'absolute',top:12,right:12,background:'none',border:'none',fontSize:18,cursor:'pointer',color:'#888',fontFamily:'inherit'},
   editBtn:{fontSize:11,color:'#666',background:'none',border:'0.5px solid #d0cfc8',borderRadius:6,padding:'3px 8px',cursor:'pointer',fontFamily:'inherit'},
-  modalAvatar:{width:64,height:64,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,fontWeight:700,marginBottom:12},
+  modalAvatar:{width:56,height:56,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:500,marginBottom:10},
   infoGrid:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginTop:'1.1rem'},
   infoCell:{background:'#f5f4f0',borderRadius:8,padding:'10px 12px'},
   statsGrid:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginTop:'1.1rem'},
   statCard:{background:'#f5f4f0',borderRadius:8,padding:'10px 12px'},
-  statLabel:{fontSize:11,fontWeight:600,color:'#555',marginBottom:3,textTransform:'uppercase',letterSpacing:'.04em'},
+  statLabel:{fontSize:11,color:'#888',marginBottom:3},
   statVal:{fontSize:16,fontWeight:500,color:'#1a1a18'},
   msec:{marginTop:0,paddingTop:'1rem',borderTop:'1px solid #f0f0ea'},
   msecHdr:{fontSize:12,fontWeight:700,color:'#1a1a18',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6},
   bookingRow:{display:'flex',alignItems:'center',gap:8,padding:'5px 0',borderBottom:'0.5px solid #e0dfd8',fontSize:13},
   bookingDay:{color:'#888',minWidth:80,fontSize:12},
   bookingProject:{fontWeight:500,color:'#1a1a18',flex:1},
-  bookingBy:{fontSize:11,color:'#888'},
+  bookingBy:{fontSize:11,color:'#aaa'},
   skillRow:{display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderBottom:'0.5px solid #e0dfd8'},
   skillName:{fontSize:13,fontWeight:500,color:'#1a1a18',minWidth:110},
   comment:{flex:1,fontSize:12,color:'#444',lineHeight:1.5,cursor:'pointer',padding:'2px 4px',borderRadius:4},
-  commentEmpty:{color:'#888',fontStyle:'italic'},
+  commentEmpty:{color:'#aaa',fontStyle:'italic'},
   commentInput:{flex:1,fontSize:12,padding:'4px 8px',borderRadius:6,border:'0.5px solid #b0afaa',background:'#fff',color:'#1a1a18',fontFamily:'inherit',outline:'none'},
-  delSkill:{background:'none',border:'none',cursor:'pointer',color:'#888',fontSize:13,padding:'2px 4px',lineHeight:1,fontFamily:'inherit',flexShrink:0},
+  delSkill:{background:'none',border:'none',cursor:'pointer',color:'#aaa',fontSize:13,padding:'2px 4px',lineHeight:1,fontFamily:'inherit',flexShrink:0},
   miniBtn:{padding:'5px 10px',fontSize:12,borderRadius:8,border:'0.5px solid #d0cfc8',background:'#fff',color:'#1a1a18',cursor:'pointer',fontFamily:'inherit',whiteSpace:'nowrap'},
   statusOpt:{padding:'10px 12px',borderRadius:8,border:'0.5px solid #d0cfc8',cursor:'pointer',display:'flex',alignItems:'center',gap:10,background:'none',textAlign:'left',fontFamily:'inherit',fontSize:13,color:'#1a1a18',width:'100%',marginBottom:6},
   formRow2:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14},
