@@ -49,6 +49,53 @@ function dk(d) {
   return d.toISOString().slice(0, 10)
 }
 
+function ProjectCard({ p, crew }) {
+  const crewList = p.bookings.map(b => b.crew).filter(Boolean)
+  const uniqueCrew = crewList.filter((c, idx) => crewList.findIndex(x => x.id === c.id) === idx)
+  const dates = p.bookings.map(b => b.date).sort()
+  const fromDate = new Date(dates[0]).toLocaleDateString('nb-NO', {day:'numeric',month:'long'})
+  const toDate = new Date(dates[dates.length-1]).toLocaleDateString('nb-NO', {day:'numeric',month:'long',year:'numeric'})
+  const allergies = []
+  uniqueCrew.forEach(c => {
+    const fullCrew = crew.find(x => x.id === c.id)
+    const allergy = (fullCrew?.skills || []).find(s => s.name.startsWith('Allergi:'))
+    if (allergy) allergies.push({ name: c.name, allergy: allergy.name.replace('Allergi: ', '').replace('Allergi:', '').trim() })
+  })
+  return (
+    <div style={{background:'#fff',borderRadius:12,border:'1px solid #E5E7F0',padding:'1.5rem',marginBottom:16,boxShadow:'0 1px 4px rgba(59,91,219,0.05)'}}>
+      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:12}}>
+        <div>
+          <div style={{fontSize:18,fontWeight:700,color:'#1A1B2E',marginBottom:4}}>{p.project}</div>
+          <div style={{fontSize:13,color:'#6B7280'}}>📅 {fromDate}{dates.length > 1 ? ' — ' + toDate : ''}</div>
+        </div>
+        <div style={{fontSize:12,fontWeight:600,color:'#3B5BDB',background:'#EEF2FF',borderRadius:20,padding:'4px 12px'}}>{uniqueCrew.length} crew</div>
+      </div>
+      <div style={{marginBottom:12}}>
+        <div style={{fontSize:11,fontWeight:700,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:8}}>Crew</div>
+        <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+          {uniqueCrew.map((c, j) => {
+            const fullCrew = crew.find(x => x.id === c.id)
+            const col = COLORS[(fullCrew?.color_index || j) % COLORS.length]
+            return (
+              <div key={j} style={{display:'flex',alignItems:'center',gap:6,background:'#F8F9FE',borderRadius:8,padding:'6px 10px',border:'1px solid #E5E7F0'}}>
+                <div style={{width:24,height:24,borderRadius:'50%',background:col.bg,color:col.text,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700}}>{c.initials}</div>
+                <span style={{fontSize:13,fontWeight:500,color:'#1A1B2E'}}>{c.name}</span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+      {allergies.length > 0 && (
+        <div style={{background:'#FFF8F0',borderRadius:8,padding:'12px 14px',border:'1px solid #FFD8A8'}}>
+          <div style={{fontSize:11,fontWeight:700,color:'#854F0B',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:8}}>⚠️ Allergier / kosthold</div>
+          {allergies.map((a, j) => <div key={j} style={{fontSize:13,color:'#854F0B',marginBottom:4}}><strong>{a.name}:</strong> {a.allergy}</div>)}
+        </div>
+      )}
+      {allergies.length === 0 && <div style={{fontSize:12,color:'#9CA3AF'}}>✅ Ingen registrerte allergier</div>}
+    </div>
+  )
+}
+
 export default function BookingPage({ user }) {
   const [view, setView] = useState('cal')
   const [myProjects, setMyProjects] = useState({})
@@ -972,66 +1019,18 @@ export default function BookingPage({ user }) {
             const today = new Date().toISOString().slice(0,10)
             const upcoming = myProjects.filter(p => p.bookings.some(b => b.date >= today))
             const past = myProjects.filter(p => p.bookings.every(b => b.date < today))
-
-            const renderProject = (p, i) => {
-              const crewList = p.bookings.map(b => b.crew).filter(Boolean)
-              const uniqueCrew = crewList.filter((c, idx) => crewList.findIndex(x => x.id === c.id) === idx)
-              const dates = p.bookings.map(b => b.date).sort()
-              const fromDate = new Date(dates[0]).toLocaleDateString('nb-NO', {day:'numeric',month:'long'})
-              const toDate = new Date(dates[dates.length-1]).toLocaleDateString('nb-NO', {day:'numeric',month:'long',year:'numeric'})
-              const allergies = []
-              uniqueCrew.forEach(c => {
-                const fullCrew = crew.find(x => x.id === c.id)
-                const allergy = (fullCrew?.skills || []).find(s => s.name.startsWith('Allergi:'))
-                if (allergy) allergies.push({ name: c.name, allergy: allergy.name.replace('Allergi: ', '').replace('Allergi:', '').trim() })
-              })
-              return (
-                <div key={i} style={{background:'#fff',borderRadius:12,border:'1px solid #E5E7F0',padding:'1.5rem',marginBottom:16,boxShadow:'0 1px 4px rgba(59,91,219,0.05)'}}>
-                  <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:12}}>
-                    <div>
-                      <div style={{fontSize:18,fontWeight:700,color:'#1A1B2E',marginBottom:4}}>{p.project}</div>
-                      <div style={{fontSize:13,color:'#6B7280'}}>📅 {fromDate}{dates.length > 1 ? ' — ' + toDate : ''}</div>
-                    </div>
-                    <div style={{fontSize:12,fontWeight:600,color:'#3B5BDB',background:'#EEF2FF',borderRadius:20,padding:'4px 12px'}}>{uniqueCrew.length} crew</div>
-                  </div>
-                  <div style={{marginBottom:12}}>
-                    <div style={{fontSize:11,fontWeight:700,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:8}}>Crew</div>
-                    <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
-                      {uniqueCrew.map((c, j) => {
-                        const fullCrew = crew.find(x => x.id === c.id)
-                        const col = COLORS[(fullCrew?.color_index || j) % COLORS.length]
-                        return (
-                          <div key={j} style={{display:'flex',alignItems:'center',gap:6,background:'#F8F9FE',borderRadius:8,padding:'6px 10px',border:'1px solid #E5E7F0'}}>
-                            <div style={{width:24,height:24,borderRadius:'50%',background:col.bg,color:col.text,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700}}>{c.initials}</div>
-                            <span style={{fontSize:13,fontWeight:500,color:'#1A1B2E'}}>{c.name}</span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                  {allergies.length > 0 && (
-                    <div style={{background:'#FFF8F0',borderRadius:8,padding:'12px 14px',border:'1px solid #FFD8A8'}}>
-                      <div style={{fontSize:11,fontWeight:700,color:'#854F0B',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:8}}>⚠️ Allergier / kosthold</div>
-                      {allergies.map((a, j) => <div key={j} style={{fontSize:13,color:'#854F0B',marginBottom:4}}><strong>{a.name}:</strong> {a.allergy}</div>)}
-                    </div>
-                  )}
-                  {allergies.length === 0 && <div style={{fontSize:12,color:'#9CA3AF'}}>✅ Ingen registrerte allergier</div>}
-                </div>
-              )
-            }
-
             return <>
               {upcoming.length > 0 && <>
                 <div style={{fontSize:16,fontWeight:700,color:'#1A1B2E',marginBottom:12,display:'flex',alignItems:'center',gap:8}}>
                   🗓 Kommende prosjekter <span style={{fontSize:12,fontWeight:600,color:'#3B5BDB',background:'#EEF2FF',borderRadius:20,padding:'2px 10px'}}>{upcoming.length}</span>
                 </div>
-                {upcoming.map((p,i) => renderProject(p,i))}
+                {upcoming.map((p,i) => <ProjectCard key={i} p={p} i={i} crew={crew} />)}
               </>}
               {past.length > 0 && <>
-                <div style={{fontSize:16,fontWeight:700,color:'#6B7280',marginBottom:12,marginTop: upcoming.length > 0 ? 24 : 0,display:'flex',alignItems:'center',gap:8}}>
+                <div style={{fontSize:16,fontWeight:700,color:'#6B7280',marginBottom:12,marginTop:upcoming.length>0?24:0,display:'flex',alignItems:'center',gap:8}}>
                   ✅ Fullførte prosjekter <span style={{fontSize:12,fontWeight:600,color:'#6B7280',background:'#F0F2FF',borderRadius:20,padding:'2px 10px'}}>{past.length}</span>
                 </div>
-                {past.map((p,i) => renderProject(p, i + upcoming.length))}
+                {past.map((p,i) => <ProjectCard key={i+upcoming.length} p={p} i={i} crew={crew} />)}
               </>}
             </>
           })()}
