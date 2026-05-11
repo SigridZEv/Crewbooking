@@ -67,6 +67,11 @@ export default function BookingPage({ user }) {
   const [addError, setAddError] = useState('')
   const [saving, setSaving] = useState(false)
   const [pendingStatus, setPendingStatus] = useState(null)
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordError, setPasswordError] = useState('')
+  const [passwordSuccess, setPasswordSuccess] = useState(false)
   const [projectInput, setProjectInput] = useState('')
   const [bookedByInput, setBookedByInput] = useState('')
   // Profile editing
@@ -226,6 +231,18 @@ export default function BookingPage({ user }) {
     showToast('Kommentar oppdatert')
   }
 
+  async function saveNewPassword() {
+    setPasswordError('')
+    if (newPassword.length < 6) { setPasswordError('Passordet må være minst 6 tegn.'); return }
+    if (newPassword !== confirmPassword) { setPasswordError('Passordene stemmer ikke overens.'); return }
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    if (error) { setPasswordError('Noe gikk galt. Prøv igjen.'); return }
+    setPasswordSuccess(true)
+    setNewPassword('')
+    setConfirmPassword('')
+    setTimeout(() => { setChangePasswordOpen(false); setPasswordSuccess(false) }, 2000)
+  }
+
   async function confirmStatus() {
     if (!changeTarget || !pendingStatus) return
     const { crew: c, date } = changeTarget
@@ -368,6 +385,7 @@ export default function BookingPage({ user }) {
             <button style={{...s.tab, ...(view==='cal'?s.tabActive:{})}} onClick={() => setView('cal')}>Kalender</button>
             <button style={{...s.tab, ...(view==='crew'?s.tabActive:{})}} onClick={() => setView('crew')}>Crew</button>
           </div>
+          <button style={s.changePassBtn} onClick={() => { setChangePasswordOpen(true); setPasswordError(''); setPasswordSuccess(false) }}>🔑 Bytt passord</button>
           <button style={s.logoutBtn} onClick={logout}>Logg ut</button>
         </div>
       </div>
@@ -753,6 +771,28 @@ export default function BookingPage({ user }) {
             <p style={{fontSize:11,color:'#9CA3AF',marginBottom:12}}>* Obligatorisk felt</p>
             {addError && <p style={{fontSize:13,color:'#C92A2A',marginBottom:12,background:'#FFF0F0',padding:'8px 12px',borderRadius:7}}>{addError}</p>}
             <button style={s.submitBtn} onClick={addCrew} disabled={saving}>{saving?'Lagrer...':'Legg til crew'}</button>
+          </div>
+        </div>
+      )}
+
+      {changePasswordOpen && (
+        <div style={s.overlay} onClick={() => setChangePasswordOpen(false)}>
+          <div style={{...s.modal, maxWidth: 380}} onClick={e => e.stopPropagation()}>
+            <button style={s.closeBtn} onClick={() => setChangePasswordOpen(false)}>✕</button>
+            <div style={{fontSize:20,fontWeight:700,marginBottom:8,color:'#1A1B2E'}}>Bytt passord 🔑</div>
+            <div style={{fontSize:13,color:'#6B7280',marginBottom:20}}>Velg et nytt passord for din konto.</div>
+            {passwordSuccess ? (
+              <div style={{textAlign:'center',padding:'1.5rem',color:'#0F6E56',fontSize:15,fontWeight:600}}>✅ Passordet er oppdatert!</div>
+            ) : (
+              <>
+                <label style={s.formLabel}>Nytt passord</label>
+                <input style={{...s.formInput, marginBottom:14}} type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Minst 6 tegn" autoFocus />
+                <label style={s.formLabel}>Bekreft passord</label>
+                <input style={{...s.formInput, marginBottom:14}} type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Gjenta passordet" onKeyDown={e => { if(e.key==='Enter') saveNewPassword() }} />
+                {passwordError && <p style={{fontSize:13,color:'#C92A2A',marginBottom:12,background:'#FFF0F0',padding:'8px 12px',borderRadius:7}}>{passwordError}</p>}
+                <button style={s.submitBtn} onClick={saveNewPassword}>Lagre nytt passord</button>
+              </>
+            )}
           </div>
         </div>
       )}
