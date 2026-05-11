@@ -47,6 +47,7 @@ export default function BookingPage({ user }) {
   const [loading, setLoading] = useState(true)
   const [searchCal, setSearchCal] = useState('')
   const [filterAvail, setFilterAvail] = useState('')
+  const [filterDay, setFilterDay] = useState('')
   const [searchCrew, setSearchCrew] = useState('')
   const [profileOpen, setProfileOpen] = useState(null)
   const [changeTarget, setChangeTarget] = useState(null)
@@ -60,6 +61,21 @@ export default function BookingPage({ user }) {
   const [pendingStatus, setPendingStatus] = useState(null)
   const [projectInput, setProjectInput] = useState('')
   const [bookedByInput, setBookedByInput] = useState('')
+  // Profile editing
+  const [editingRate, setEditingRate] = useState(false)
+  const [rateInput, setRateInput] = useState('')
+  const [editingBio, setEditingBio] = useState(false)
+  const [bioInput, setBioInput] = useState('')
+  const [allergyInput, setAllergyInput] = useState('')
+  const [editingAllergy, setEditingAllergy] = useState(false)
+  const [editingName, setEditingName] = useState(false)
+  const [nameInput, setNameInput] = useState('')
+  const [editingLocation, setEditingLocation] = useState(false)
+  const [locationInput, setLocationInput] = useState('')
+  const [editingNotes, setEditingNotes] = useState(false)
+  const [notesInput, setNotesInput] = useState('')
+  const [editingBirthdate, setEditingBirthdate] = useState(false)
+  const [birthdateInput, setBirthdateInput] = useState('')
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
 
@@ -100,6 +116,109 @@ export default function BookingPage({ user }) {
     setPendingStatus(null)
     setProjectInput('')
     setBookedByInput('')
+  }
+
+  function openProfile(c) {
+    setProfileOpen(c)
+    setEditingRate(false)
+    setEditingBio(false)
+    setEditingAllergy(false)
+    setRateInput(String(c.rate))
+    setBioInput(c.bio || '')
+    // Find allergy skill
+    const allergySk = (c.skills || []).find(s => s.name.startsWith('Allergi:'))
+    setAllergyInput(allergySk ? allergySk.name.replace('Allergi: ', '').replace('Allergi:', '') : '')
+    setEditingName(false)
+    setNameInput(c.name)
+  }
+
+  async function saveRate() {
+    if (!profileOpen) return
+    const newRate = parseInt(rateInput)
+    if (!newRate || newRate < 1) return
+    await supabase.from('crew').update({ rate: newRate }).eq('id', profileOpen.id)
+    setCrew(prev => prev.map(c => c.id === profileOpen.id ? { ...c, rate: newRate } : c))
+    setProfileOpen(prev => ({ ...prev, rate: newRate }))
+    setEditingRate(false)
+    showToast('Timelonn oppdatert')
+  }
+
+  async function saveBio() {
+    if (!profileOpen) return
+    await supabase.from('crew').update({ bio: bioInput }).eq('id', profileOpen.id)
+    setCrew(prev => prev.map(c => c.id === profileOpen.id ? { ...c, bio: bioInput } : c))
+    setProfileOpen(prev => ({ ...prev, bio: bioInput }))
+    setEditingBio(false)
+    showToast('Bio oppdatert')
+  }
+
+  async function saveAllergy() {
+    if (!profileOpen) return
+    const c = profileOpen
+    const skills = c.skills || []
+    const existingAllergySkill = skills.find(s => s.name.startsWith('Allergi:'))
+    const newVal = allergyInput.trim()
+    if (existingAllergySkill) {
+      if (newVal) {
+        await supabase.from('skills').update({ name: 'Allergi: ' + newVal }).eq('id', existingAllergySkill.id)
+        const updated = skills.map(s => s.id === existingAllergySkill.id ? { ...s, name: 'Allergi: ' + newVal } : s)
+        setCrew(prev => prev.map(cr => cr.id === c.id ? { ...cr, skills: updated } : cr))
+        setProfileOpen(prev => ({ ...prev, skills: updated }))
+      } else {
+        await supabase.from('skills').delete().eq('id', existingAllergySkill.id)
+        const updated = skills.filter(s => s.id !== existingAllergySkill.id)
+        setCrew(prev => prev.map(cr => cr.id === c.id ? { ...cr, skills: updated } : cr))
+        setProfileOpen(prev => ({ ...prev, skills: updated }))
+      }
+    } else if (newVal) {
+      const { data } = await supabase.from('skills').insert({ crew_id: c.id, name: 'Allergi: ' + newVal, comment: '' }).select().single()
+      if (data) {
+        const updated = [...skills, data]
+        setCrew(prev => prev.map(cr => cr.id === c.id ? { ...cr, skills: updated } : cr))
+        setProfileOpen(prev => ({ ...prev, skills: updated }))
+      }
+    }
+    setEditingAllergy(false)
+    showToast('Allergi oppdatert')
+  }
+
+  async function saveName() {
+    if (!profileOpen || !nameInput.trim()) return
+    const newName = nameInput.trim()
+    const parts = newName.split(' ')
+    const initials = parts.length >= 2 ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase() : newName.slice(0,2).toUpperCase()
+    await supabase.from('crew').update({ name: newName, initials }).eq('id', profileOpen.id)
+    setCrew(prev => prev.map(c => c.id === profileOpen.id ? { ...c, name: newName, initials } : c))
+    setProfileOpen(prev => ({ ...prev, name: newName, initials }))
+    setEditingName(false)
+    showToast('Navn oppdatert')
+  }
+
+  async function saveBirthdate() {
+    if (!profileOpen) return
+    await supabase.from('crew').update({ birthdate: birthdateInput || null }).eq('id', profileOpen.id)
+    setCrew(prev => prev.map(c => c.id === profileOpen.id ? { ...c, birthdate: birthdateInput } : c))
+    setProfileOpen(prev => ({ ...prev, birthdate: birthdateInput }))
+    setEditingBirthdate(false)
+    showToast('Fodselsdato oppdatert')
+  }
+
+  async function saveLocation() {
+    if (!profileOpen) return
+    await supabase.from('crew').update({ location: locationInput }).eq('id', profileOpen.id)
+    setCrew(prev => prev.map(c => c.id === profileOpen.id ? { ...c, location: locationInput } : c))
+    setProfileOpen(prev => ({ ...prev, location: locationInput }))
+    setEditingLocation(false)
+    showToast('Bosted oppdatert')
+  }
+
+  async function saveNotes() {
+    if (!profileOpen) return
+    await supabase.from('crew').update({ notes: notesInput }).eq('id', profileOpen.id)
+    setCrew(prev => prev.map(c => c.id === profileOpen.id ? { ...c, notes: notesInput } : c))
+    setProfileOpen(prev => ({ ...prev, notes: notesInput }))
+    setEditingNotes(false)
+    showToast('Kommentar oppdatert')
   }
 
   async function confirmStatus() {
@@ -167,11 +286,17 @@ export default function BookingPage({ user }) {
   async function logout() { await supabase.auth.signOut() }
 
   const days = getWeekDates(weekOffset)
+
   const filteredCal = crew.filter(c => {
     if (searchCal && !c.name.toLowerCase().includes(searchCal.toLowerCase())) return false
-    if (filterAvail && !days.some(d => getStatus(c.id, dk(d)) === filterAvail)) return false
+    if (filterAvail && filterDay) {
+      if (getStatus(c.id, filterDay) !== filterAvail) return false
+    } else if (filterAvail) {
+      if (!days.some(d => getStatus(c.id, dk(d)) === filterAvail)) return false
+    }
     return true
   })
+
   const filteredCrew = crew.filter(c => {
     if (!searchCrew) return true
     const q = searchCrew.toLowerCase()
@@ -204,9 +329,18 @@ export default function BookingPage({ user }) {
               <option value="requested">Forespurt</option>
               <option value="unavailable">Ikke tilgjengelig</option>
             </select>
+            <select style={s.select} value={filterDay} onChange={e => setFilterDay(e.target.value)}>
+              <option value="">Alle dager</option>
+              {days.map(d => <option key={dk(d)} value={dk(d)}>{fmtDay(d)}</option>)}
+            </select>
             <input style={s.search} value={searchCal} onChange={e => setSearchCal(e.target.value)} placeholder="Sok navn..." />
-            <button style={s.clearBtn} onClick={() => { setSearchCal(''); setFilterAvail('') }}>Nullstill</button>
+            <button style={s.clearBtn} onClick={() => { setSearchCal(''); setFilterAvail(''); setFilterDay('') }}>Nullstill</button>
           </div>
+          {filterAvail && filterDay && (
+            <div style={s.filterInfo}>
+              Viser crew med status <strong>{STATUS[filterAvail].full}</strong> pa {days.find(d => dk(d) === filterDay) ? fmtDay(days.find(d => dk(d) === filterDay)) : filterDay} - {filteredCal.length} person(er)
+            </div>
+          )}
           <div style={s.weekNav}>
             <button style={s.navBtn} onClick={() => setWeekOffset(w => w-1)}>Forrige</button>
             <span style={s.weekLabel}>{days[0].toLocaleDateString('nb-NO',{day:'numeric',month:'long'})} - {days[6].toLocaleDateString('nb-NO',{day:'numeric',month:'long',year:'numeric'})}</span>
@@ -219,7 +353,7 @@ export default function BookingPage({ user }) {
             <table style={s.table}>
               <thead><tr>
                 <th style={{...s.th,textAlign:'left',minWidth:150}}>Crew</th>
-                {days.map(d => <th key={dk(d)} style={s.th}>{fmtDay(d)}</th>)}
+                {days.map(d => <th key={dk(d)} style={{...s.th, background: filterDay===dk(d)?'#f0f7ff':undefined}}>{fmtDay(d)}</th>)}
               </tr></thead>
               <tbody>
                 {filteredCal.length === 0 && <tr><td colSpan={8} style={s.empty}>Ingen crew matcher filteret.</td></tr>}
@@ -227,7 +361,7 @@ export default function BookingPage({ user }) {
                   const col = COLORS[c.color_index % COLORS.length]
                   return <tr key={c.id}>
                     <td style={s.crewCell}>
-                      <div style={s.crewInfo} onClick={() => setProfileOpen(c)}>
+                      <div style={s.crewInfo} onClick={() => openProfile(c)}>
                         <div style={{...s.avatar,background:col.bg,color:col.text}}>{c.initials}</div>
                         <span style={s.crewName}>{c.name}</span>
                       </div>
@@ -237,12 +371,14 @@ export default function BookingPage({ user }) {
                       const st = getStatus(c.id, date)
                       const cfg = STATUS[st]
                       const booking = getBooking(c.id, date)
-                      return <td key={date} style={s.dayCell}>
-                        <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
+                      const isHighlighted = filterDay === date
+                      return <td key={date} style={{...s.dayCell, background: isHighlighted?'#f0f7ff':undefined}}>
+                        <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
                           <button style={{...s.pill,background:cfg.bg,color:cfg.c}}
-                            title={booking && booking.project ? cfg.full + ' - ' + booking.project + (booking.booked_by ? ' (av ' + booking.booked_by + ')' : '') : cfg.full}
+                            title={booking && booking.project ? cfg.full + ' - ' + booking.project : cfg.full}
                             onClick={() => openChange(c, date, fmtDay(d))}>{cfg.label}</button>
-                          {booking && booking.project && <span style={s.projectLabel}>{booking.project.length > 8 ? booking.project.slice(0,7)+'...' : booking.project}</span>}
+                          {booking && booking.project && <span style={s.projectLabel}>{booking.project}</span>}
+                          {booking && booking.booked_by && <span style={s.bookedByLabel}>av {booking.booked_by}</span>}
                         </div>
                       </td>
                     })}
@@ -263,8 +399,9 @@ export default function BookingPage({ user }) {
           <div style={s.crewGrid}>
             {filteredCrew.map(c => {
               const col = COLORS[c.color_index % COLORS.length]
-              const skills = c.skills || []
-              return <div key={c.id} style={s.crewCard} onClick={() => setProfileOpen(c)}>
+              const skills = (c.skills || []).filter(s => !s.name.startsWith('Allergi:'))
+              const allergy = (c.skills || []).find(s => s.name.startsWith('Allergi:'))
+              return <div key={c.id} style={s.crewCard} onClick={() => openProfile(c)}>
                 <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
                   <div style={{...s.avatar,width:40,height:40,background:col.bg,color:col.text}}>{c.initials}</div>
                   <div style={s.crewName}>{c.name}</div>
@@ -274,12 +411,14 @@ export default function BookingPage({ user }) {
                   {skills.slice(0,3).map(sk => <span key={sk.id} style={s.skillTag}>{sk.name}</span>)}
                   {skills.length > 3 && <span style={{fontSize:11,color:'#888',padding:'3px 4px'}}>+{skills.length-3}</span>}
                 </div>
+                {allergy && <div style={{marginTop:8,fontSize:11,color:'#A32D2D',background:'#FCEBEB',borderRadius:6,padding:'3px 8px',display:'inline-block'}}>{allergy.name}</div>}
               </div>
             })}
           </div>
         </div>
       )}
 
+      {/* Profile modal */}
       {profileOpen && (
         <div style={s.overlay} onClick={() => setProfileOpen(null)}>
           <div style={s.modal} onClick={e => e.stopPropagation()}>
@@ -288,18 +427,135 @@ export default function BookingPage({ user }) {
               const c = profileOpen
               const col = COLORS[c.color_index % COLORS.length]
               const freeDays = days.filter(d => getStatus(c.id, dk(d)) === 'free').length
-              const skills = c.skills || []
+              const skills = (c.skills || []).filter(s => !s.name.startsWith('Allergi:'))
               const weekBookings = days.map(d => ({day: fmtDay(d), b: getBooking(c.id, dk(d))})).filter(x => x.b && x.b.status === 'booked' && x.b.project)
               return <>
                 <div style={{...s.modalAvatar,background:col.bg,color:col.text}}>{c.initials}</div>
-                <div style={{fontSize:18,fontWeight:500,color:'#1a1a18',marginBottom:2}}>{c.name}</div>
-                <div style={{display:'flex',alignItems:'baseline',gap:4,margin:'6px 0 1rem'}}>
-                  <span style={s.rate}>{c.rate} kr</span><span style={s.rateUnit}>/ time</span>
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+                  {editingName ? (
+                    <div style={{display:'flex',gap:8,flex:1}}>
+                      <input style={{...s.formInput,flex:1,fontSize:16}} value={nameInput} onChange={e => setNameInput(e.target.value)} onKeyDown={e => { if(e.key==='Enter') saveName() }} autoFocus />
+                      <button style={s.miniBtn} onClick={saveName}>Lagre</button>
+                      <button style={s.clearBtn} onClick={() => setEditingName(false)}>Avbryt</button>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{fontSize:18,fontWeight:500,color:'#1a1a18',flex:1}}>{c.name}</div>
+                      <button style={s.editBtn} onClick={() => { setEditingName(true); setNameInput(c.name) }}>Rediger navn</button>
+                    </>
+                  )}
+                </div>
+
+                {/* Editable rate */}
+                <div style={s.msec}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+                    <div style={s.msecHdr}>Timepris</div>
+                    {!editingRate && <button style={s.editBtn} onClick={() => { setEditingRate(true); setRateInput(String(c.rate)) }}>Rediger</button>}
+                  </div>
+                  {editingRate ? (
+                    <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                      <input style={{...s.formInput,width:120}} type="number" value={rateInput} onChange={e => setRateInput(e.target.value)} onKeyDown={e => { if(e.key==='Enter') saveRate() }} autoFocus />
+                      <span style={{fontSize:13,color:'#888'}}>kr/t</span>
+                      <button style={s.miniBtn} onClick={saveRate}>Lagre</button>
+                      <button style={s.clearBtn} onClick={() => setEditingRate(false)}>Avbryt</button>
+                    </div>
+                  ) : (
+                    <div style={{fontSize:24,fontWeight:500,color:'#1a1a18'}}>{c.rate} kr<span style={{fontSize:13,fontWeight:400,color:'#888'}}>/t</span></div>
+                  )}
+                </div>
+
+                {/* Editable allergy */}
+                <div style={s.msec}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+                    <div style={s.msecHdr}>Allergi / kosthold</div>
+                    {!editingAllergy && <button style={s.editBtn} onClick={() => setEditingAllergy(true)}>Rediger</button>}
+                  </div>
+                  {editingAllergy ? (
+                    <div style={{display:'flex',gap:8}}>
+                      <input style={{...s.formInput,flex:1}} value={allergyInput} onChange={e => setAllergyInput(e.target.value)} placeholder="f.eks. Laktose, gluten..." autoFocus onKeyDown={e => { if(e.key==='Enter') saveAllergy() }} />
+                      <button style={s.miniBtn} onClick={saveAllergy}>Lagre</button>
+                      <button style={s.clearBtn} onClick={() => setEditingAllergy(false)}>Avbryt</button>
+                    </div>
+                  ) : (
+                    <div style={{fontSize:13,color: allergyInput ? '#A32D2D' : '#aaa'}}>{allergyInput || 'Ingen registrert'}</div>
+                  )}
+                </div>
+
+                {/* Editable bio */}
+                <div style={s.msec}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+                    <div style={s.msecHdr}>Om</div>
+                    {!editingBio && <button style={s.editBtn} onClick={() => { setEditingBio(true); setBioInput(c.bio || '') }}>Rediger</button>}
+                  </div>
+                  {editingBio ? (
+                    <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                      <textarea style={{...s.formInput,resize:'vertical'}} rows={3} value={bioInput} onChange={e => setBioInput(e.target.value)} autoFocus />
+                      <div style={{display:'flex',gap:8}}>
+                        <button style={s.miniBtn} onClick={saveBio}>Lagre</button>
+                        <button style={s.clearBtn} onClick={() => setEditingBio(false)}>Avbryt</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p style={{fontSize:13,color:'#666',lineHeight:1.6,margin:0}}>{c.bio || '-'}</p>
+                  )}
+                </div>
+
+                <div style={s.infoGrid}>
+                  <div style={s.infoCell}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
+                      <div style={s.msecHdr}>Fodselsdato</div>
+                      {!editingBirthdate && <button style={s.editBtn} onClick={() => setEditingBirthdate(true)}>Rediger</button>}
+                    </div>
+                    {editingBirthdate ? (
+                      <div style={{display:'flex',gap:6}}>
+                        <input style={{...s.formInput,flex:1}} type='date' value={birthdateInput} onChange={e => setBirthdateInput(e.target.value)} autoFocus />
+                        <button style={s.miniBtn} onClick={saveBirthdate}>Lagre</button>
+                        <button style={s.clearBtn} onClick={() => setEditingBirthdate(false)}>X</button>
+                      </div>
+                    ) : (
+                      <div style={{fontSize:13,color:c.birthdate?'#1a1a18':'#aaa'}}>
+                        {c.birthdate ? new Date(c.birthdate).toLocaleDateString('nb-NO') : 'Ikke registrert'}
+                      </div>
+                    )}
+                  </div>
+                  <div style={s.infoCell}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
+                      <div style={s.msecHdr}>Bosted</div>
+                      {!editingLocation && <button style={s.editBtn} onClick={() => setEditingLocation(true)}>Rediger</button>}
+                    </div>
+                    {editingLocation ? (
+                      <div style={{display:'flex',gap:6}}>
+                        <input style={{...s.formInput,flex:1}} value={locationInput} onChange={e => setLocationInput(e.target.value)} placeholder='f.eks. Oslo' autoFocus onKeyDown={e => { if(e.key==='Enter') saveLocation() }} />
+                        <button style={s.miniBtn} onClick={saveLocation}>Lagre</button>
+                        <button style={s.clearBtn} onClick={() => setEditingLocation(false)}>X</button>
+                      </div>
+                    ) : (
+                      <div style={{fontSize:13,color:c.location?'#1a1a18':'#aaa'}}>{c.location || 'Ikke registrert'}</div>
+                    )}
+                  </div>
+                </div>
+                <div style={s.msec}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
+                    <div style={s.msecHdr}>Kommentarer</div>
+                    {!editingNotes && <button style={s.editBtn} onClick={() => { setEditingNotes(true); setNotesInput(c.notes || '') }}>Rediger</button>}
+                  </div>
+                  {editingNotes ? (
+                    <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                      <textarea style={{...s.formInput,resize:'vertical'}} rows={3} value={notesInput} onChange={e => setNotesInput(e.target.value)} placeholder='Interne kommentarer...' autoFocus />
+                      <div style={{display:'flex',gap:8}}>
+                        <button style={s.miniBtn} onClick={saveNotes}>Lagre</button>
+                        <button style={s.clearBtn} onClick={() => setEditingNotes(false)}>Avbryt</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p style={{fontSize:13,color:c.notes?'#444':'#aaa',lineHeight:1.6,margin:0}}>{c.notes || 'Ingen kommentarer'}</p>
+                  )}
                 </div>
                 <div style={s.statsGrid}>
                   <div style={s.statCard}><div style={s.statLabel}>Ledige dager (uke)</div><div style={s.statVal}>{freeDays} av 7</div></div>
                   <div style={s.statCard}><div style={s.statLabel}>Gjennomforte jobber</div><div style={s.statVal}>{c.jobs}</div></div>
                 </div>
+
                 {weekBookings.length > 0 && <div style={s.msec}>
                   <div style={s.msecHdr}>Bookinger denne uken</div>
                   {weekBookings.map((x,i) => <div key={i} style={s.bookingRow}>
@@ -308,9 +564,10 @@ export default function BookingPage({ user }) {
                     {x.b.booked_by && <span style={s.bookingBy}>av {x.b.booked_by}</span>}
                   </div>)}
                 </div>}
-                <div style={s.msec}><div style={s.msecHdr}>Om</div><p style={{fontSize:13,color:'#666',lineHeight:1.6}}>{c.bio || '-'}</p></div>
+
+                {/* Skills */}
                 <div style={s.msec}>
-                  <div style={s.msecHdr}>Kompetanse</div>
+                  <div style={s.msecHdr}>Ferdigheter</div>
                   {skills.map(sk => <div key={sk.id} style={s.skillRow}>
                     <span style={s.skillName}>{sk.name}</span>
                     {editingComment && editingComment.skillId === sk.id
@@ -334,6 +591,7 @@ export default function BookingPage({ user }) {
         </div>
       )}
 
+      {/* Status change modal */}
       {changeTarget && (
         <div style={s.overlay} onClick={() => setChangeTarget(null)}>
           <div style={{...s.modal,maxWidth:340}} onClick={e => e.stopPropagation()}>
@@ -342,13 +600,13 @@ export default function BookingPage({ user }) {
             <div style={{fontSize:12,color:'#888',marginBottom:16}}>{changeTarget.dateLabel}</div>
             {!pendingStatus ? <>
               {Object.entries(STATUS).map(([k,v]) => <button key={k} style={s.statusOpt} onClick={() => {
-                if (k === 'free' || k === 'unavailable') { setPendingStatus(k); saveSimpleStatus(k) }
+                if (k === 'free' || k === 'unavailable') saveSimpleStatus(k)
                 else setPendingStatus(k)
               }}>
                 <span style={{...s.dot,background:v.bg,border:'1px solid '+v.c,flexShrink:0}}/>{v.full}
               </button>)}
-            </> : (pendingStatus === 'booked' || pendingStatus === 'requested') ? <>
-              <div style={{fontSize:13,color:'#888',marginBottom:12}}>{STATUS[pendingStatus].full} — fyll inn detaljer</div>
+            </> : <>
+              <div style={{fontSize:13,color:'#888',marginBottom:12}}>{STATUS[pendingStatus].full} - fyll inn detaljer</div>
               <label style={s.formLabel}>Prosjekt / arrangement</label>
               <input style={{...s.formInput,marginBottom:10}} value={projectInput} onChange={e => setProjectInput(e.target.value)} placeholder="f.eks. Telenor konferanse" autoFocus />
               <label style={s.formLabel}>Booket av</label>
@@ -357,11 +615,12 @@ export default function BookingPage({ user }) {
                 <button style={{...s.miniBtn,flex:1}} onClick={() => setPendingStatus(null)}>Tilbake</button>
                 <button style={{...s.submitBtn,flex:2,padding:'8px'}} onClick={confirmStatus} disabled={saving}>{saving ? 'Lagrer...' : 'Bekreft'}</button>
               </div>
-            </> : null}
+            </>}
           </div>
         </div>
       )}
 
+      {/* Add crew modal */}
       {addOpen && (
         <div style={s.overlay} onClick={() => setAddOpen(false)}>
           <div style={{...s.modal,maxWidth:460}} onClick={e => e.stopPropagation()}>
@@ -372,7 +631,7 @@ export default function BookingPage({ user }) {
               <div><label style={s.formLabel}>Etternavn *</label><input style={s.formInput} value={addForm.last} onChange={e => setAddForm(f=>({...f,last:e.target.value}))} placeholder="Haugen" /></div>
             </div>
             <div style={s.formRow2}>
-              <div><label style={s.formLabel}>Timelnn (kr) *</label><input style={s.formInput} type="number" value={addForm.rate} onChange={e => setAddForm(f=>({...f,rate:e.target.value}))} placeholder="600" /></div>
+              <div><label style={s.formLabel}>Timelonn (kr) *</label><input style={s.formInput} type="number" value={addForm.rate} onChange={e => setAddForm(f=>({...f,rate:e.target.value}))} placeholder="600" /></div>
               <div><label style={s.formLabel}>Antall jobber</label><input style={s.formInput} type="number" value={addForm.jobs} onChange={e => setAddForm(f=>({...f,jobs:e.target.value}))} placeholder="0" /></div>
             </div>
             <div style={{marginBottom:14}}><label style={s.formLabel}>Kompetanse (kommaseparert)</label><input style={s.formInput} value={addForm.skills} onChange={e => setAddForm(f=>({...f,skills:e.target.value}))} placeholder="Sony FX9, Drone" /></div>
@@ -395,7 +654,7 @@ export default function BookingPage({ user }) {
 }
 
 const s = {
-  page:{maxWidth:960,margin:'0 auto',padding:'1.5rem 1rem',fontFamily:'system-ui, sans-serif',color:'#1a1a18',position:'relative',minHeight:'100vh'},
+  page:{maxWidth:1200,margin:'0 auto',padding:'1.5rem 1rem',fontFamily:'system-ui, sans-serif',color:'#1a1a18',position:'relative',minHeight:'100vh'},
   loading:{padding:'3rem',textAlign:'center',color:'#888',fontFamily:'system-ui, sans-serif'},
   header:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1.5rem',flexWrap:'wrap',gap:10},
   headerRight:{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'},
@@ -406,7 +665,8 @@ const s = {
   tabs:{display:'flex',gap:4,background:'#f1f0ea',borderRadius:8,padding:4},
   tab:{padding:'6px 14px',fontSize:13,border:'none',background:'transparent',color:'#888',borderRadius:6,cursor:'pointer',fontFamily:'inherit'},
   tabActive:{background:'#fff',color:'#1a1a18',border:'0.5px solid #d0cfc8'},
-  filterBar:{display:'flex',gap:8,flexWrap:'wrap',marginBottom:'1rem',alignItems:'center'},
+  filterBar:{display:'flex',gap:8,flexWrap:'wrap',marginBottom:'0.5rem',alignItems:'center'},
+  filterInfo:{fontSize:12,color:'#555',marginBottom:'0.75rem',padding:'6px 10px',background:'#f0f7ff',borderRadius:6},
   select:{fontSize:13,padding:'6px 10px',borderRadius:8,border:'0.5px solid #d0cfc8',background:'#fff',color:'#1a1a18',fontFamily:'inherit'},
   search:{fontSize:13,padding:'6px 10px',borderRadius:8,border:'0.5px solid #d0cfc8',background:'#fff',color:'#1a1a18',fontFamily:'inherit',minWidth:160},
   clearBtn:{fontSize:12,color:'#888',background:'none',border:'none',cursor:'pointer',fontFamily:'inherit',padding:'4px 6px'},
@@ -418,14 +678,15 @@ const s = {
   dot:{width:10,height:10,borderRadius:'50%',display:'inline-block'},
   tableWrap:{overflowX:'auto'},
   table:{width:'100%',borderCollapse:'collapse',fontSize:13,minWidth:580},
-  th:{padding:'8px 4px',fontWeight:500,color:'#888',textAlign:'center',fontSize:11,borderBottom:'0.5px solid #e0dfd8'},
+  th:{padding:'8px 6px',fontWeight:500,color:'#888',textAlign:'center',fontSize:11,borderBottom:'0.5px solid #e0dfd8'},
   crewCell:{padding:'8px 10px',borderBottom:'0.5px solid #e0dfd8',whiteSpace:'nowrap'},
   crewInfo:{display:'flex',alignItems:'center',gap:8,cursor:'pointer'},
   avatar:{width:30,height:30,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:500,flexShrink:0},
   crewName:{fontSize:13,fontWeight:500,color:'#1a1a18'},
-  dayCell:{padding:'6px 4px',textAlign:'center',borderBottom:'0.5px solid #e0dfd8',borderLeft:'0.5px solid #e0dfd8',minWidth:250},
+  dayCell:{padding:'8px 6px',textAlign:'center',borderBottom:'0.5px solid #e0dfd8',borderLeft:'0.5px solid #e0dfd8',minWidth:110,verticalAlign:'top'},
   pill:{display:'inline-flex',alignItems:'center',justifyContent:'center',width:32,height:32,borderRadius:'50%',fontSize:11,cursor:'pointer',fontWeight:500,border:'none',fontFamily:'inherit'},
-projectLabel:{fontSize:10,color:'#555',maxWidth:120,lineHeight:1.3,marginTop:2,wordBreak:'break-word'},  
+  projectLabel:{fontSize:10,color:'#444',lineHeight:1.4,marginTop:2,wordBreak:'break-word',maxWidth:100,textAlign:'center'},
+  bookedByLabel:{fontSize:9,color:'#aaa',lineHeight:1.3,textAlign:'center'},
   crewGrid:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:12},
   crewCard:{background:'#fff',borderRadius:12,border:'0.5px solid #e0dfd8',padding:'1.25rem',cursor:'pointer'},
   rate:{fontSize:20,fontWeight:500,color:'#1a1a18'},
@@ -434,13 +695,16 @@ projectLabel:{fontSize:10,color:'#555',maxWidth:120,lineHeight:1.3,marginTop:2,w
   overlay:{position:'fixed',inset:0,background:'rgba(0,0,0,0.35)',zIndex:100,display:'flex',alignItems:'flex-start',justifyContent:'center',paddingTop:'2rem'},
   modal:{background:'#fff',borderRadius:16,border:'0.5px solid #e0dfd8',padding:'1.5rem',width:'100%',maxWidth:480,position:'relative',maxHeight:'85vh',overflowY:'auto',margin:'0 1rem'},
   closeBtn:{position:'absolute',top:12,right:12,background:'none',border:'none',fontSize:18,cursor:'pointer',color:'#888',fontFamily:'inherit'},
+  editBtn:{fontSize:11,color:'#666',background:'none',border:'0.5px solid #d0cfc8',borderRadius:6,padding:'3px 8px',cursor:'pointer',fontFamily:'inherit'},
   modalAvatar:{width:56,height:56,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:500,marginBottom:10},
-  statsGrid:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginTop:6},
+  infoGrid:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginTop:'1.1rem'},
+  infoCell:{background:'#f5f4f0',borderRadius:8,padding:'10px 12px'},
+  statsGrid:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginTop:'1.1rem'},
   statCard:{background:'#f5f4f0',borderRadius:8,padding:'10px 12px'},
   statLabel:{fontSize:11,color:'#888',marginBottom:3},
   statVal:{fontSize:16,fontWeight:500,color:'#1a1a18'},
   msec:{marginTop:'1.1rem'},
-  msecHdr:{fontSize:11,fontWeight:500,color:'#888',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:8},
+  msecHdr:{fontSize:11,fontWeight:500,color:'#888',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:4},
   bookingRow:{display:'flex',alignItems:'center',gap:8,padding:'5px 0',borderBottom:'0.5px solid #e0dfd8',fontSize:13},
   bookingDay:{color:'#888',minWidth:80,fontSize:12},
   bookingProject:{fontWeight:500,color:'#1a1a18',flex:1},
