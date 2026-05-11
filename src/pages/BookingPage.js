@@ -130,6 +130,12 @@ export default function BookingPage({ user }) {
 
   useEffect(() => { loadCrew() }, [loadCrew])
   useEffect(() => {
+    const savedProfile = localStorage.getItem('zcrew_profile')
+    if (savedProfile) {
+      try { setMyProfileForm(JSON.parse(savedProfile)) } catch(e) {}
+    }
+    const savedProfile = localStorage.getItem('zcrew_profile')
+    if (savedProfile) { try { setMyProfileForm(JSON.parse(savedProfile)) } catch(e) {} }
     const saved = localStorage.getItem('zcrew_username')
     if (saved) setUserName(saved)
     else setSettingName(true)
@@ -285,6 +291,18 @@ export default function BookingPage({ user }) {
     setProfileOpen(prev => ({ ...prev, notes: notesInput }))
     setEditingNotes(false)
     showToast('Kommentar oppdatert')
+  }
+
+  function saveMyProfile() {
+    localStorage.setItem('zcrew_profile', JSON.stringify(myProfileForm))
+    setMyProfileOpen(false)
+    showToast('Profil oppdatert!')
+  }
+
+  function saveMyProfile() {
+    localStorage.setItem('zcrew_profile', JSON.stringify(myProfileForm))
+    setMyProfileOpen(false)
+    showToast('Profil oppdatert!')
   }
 
   function saveUserName() {
@@ -500,11 +518,18 @@ export default function BookingPage({ user }) {
             <button style={{...s.tab, ...(view==='cal'?s.tabActive:{})}} onClick={() => setView('cal')}>Kalender</button>
             <button style={{...s.tab, ...(view==='crew'?s.tabActive:{})}} onClick={() => setView('crew')}>Crew</button>
             <button style={{...s.tab, ...(view==='mine'?s.tabActive:{})}} onClick={() => { setView('mine'); loadMyProjects() }}>Mine prosjekter</button>
-            <button style={{...s.tab, ...(view==='mine'?s.tabActive:{})}} onClick={() => { setView('mine'); loadMyProjects() }}>Mine prosjekter</button>
           </div>
-          <button style={s.changePassBtn} onClick={() => { setSettingName(true); setNameInputVal(userName) }}>👤 {userName || 'Sett navn'}</button>
-          <button style={s.changePassBtn} onClick={() => { setChangePasswordOpen(true); setPasswordError(''); setPasswordSuccess(false) }}>🔑 Bytt passord</button>
-          <button style={s.logoutBtn} onClick={logout}>Logg ut</button>
+          <div style={{position:'relative'}} onMouseEnter={() => setShowUserMenu(true)} onMouseLeave={() => setShowUserMenu(false)}>
+            <button style={s.changePassBtn}>👤 {userName || 'Sett navn'}</button>
+            {showUserMenu && (
+              <div style={{position:'absolute',top:'100%',right:0,background:'#fff',borderRadius:10,border:'1px solid #E5E7F0',boxShadow:'0 8px 24px rgba(26,27,46,0.12)',minWidth:190,zIndex:200,overflow:'hidden',marginTop:4}}>
+                <button style={s.menuItem} onClick={() => { setMyProfileOpen(true); setShowUserMenu(false) }}>👤 Min profil</button>
+                <button style={s.menuItem} onClick={() => { setView('mine'); loadMyProjects(); setShowUserMenu(false) }}>📋 Mine prosjekter</button>
+                <div style={{borderTop:'1px solid #F0F2FF'}} />
+                <button style={{...s.menuItem, color:'#C92A2A'}} onClick={logout}>🚪 Logg ut</button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -943,59 +968,73 @@ export default function BookingPage({ user }) {
           {!loadingProjects && myProjects.length === 0 && (
             <div style={s.empty}>Ingen prosjekter funnet. Bookinger du gjør vises her.</div>
           )}
-          {myProjects.map((p, i) => {
-            const crewList = p.bookings.map(b => b.crew).filter(Boolean)
-            const uniqueCrew = crewList.filter((c, idx) => crewList.findIndex(x => x.id === c.id) === idx)
-            const dates = p.bookings.map(b => b.date).sort()
-            const fromDate = new Date(dates[0]).toLocaleDateString('nb-NO', {day:'numeric',month:'long'})
-            const toDate = new Date(dates[dates.length-1]).toLocaleDateString('nb-NO', {day:'numeric',month:'long',year:'numeric'})
-            // Collect allergies
-            const allergies = []
-            uniqueCrew.forEach(c => {
-              const fullCrew = crew.find(x => x.id === c.id)
-              const allergy = (fullCrew?.skills || []).find(s => s.name.startsWith('Allergi:'))
-              if (allergy) allergies.push({ name: c.name, allergy: allergy.name.replace('Allergi: ', '').replace('Allergi:', '').trim() })
-            })
-            return (
-              <div key={i} style={{background:'#fff',borderRadius:12,border:'1px solid #E5E7F0',padding:'1.5rem',marginBottom:16,boxShadow:'0 1px 4px rgba(59,91,219,0.05)'}}>
-                <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:12}}>
-                  <div>
-                    <div style={{fontSize:18,fontWeight:700,color:'#1A1B2E',marginBottom:4}}>{p.project}</div>
-                    <div style={{fontSize:13,color:'#6B7280'}}>📅 {fromDate}{dates.length > 1 ? ' — ' + toDate : ''}</div>
+          {(() => {
+            const today = new Date().toISOString().slice(0,10)
+            const upcoming = myProjects.filter(p => p.bookings.some(b => b.date >= today))
+            const past = myProjects.filter(p => p.bookings.every(b => b.date < today))
+
+            const renderProject = (p, i) => {
+              const crewList = p.bookings.map(b => b.crew).filter(Boolean)
+              const uniqueCrew = crewList.filter((c, idx) => crewList.findIndex(x => x.id === c.id) === idx)
+              const dates = p.bookings.map(b => b.date).sort()
+              const fromDate = new Date(dates[0]).toLocaleDateString('nb-NO', {day:'numeric',month:'long'})
+              const toDate = new Date(dates[dates.length-1]).toLocaleDateString('nb-NO', {day:'numeric',month:'long',year:'numeric'})
+              const allergies = []
+              uniqueCrew.forEach(c => {
+                const fullCrew = crew.find(x => x.id === c.id)
+                const allergy = (fullCrew?.skills || []).find(s => s.name.startsWith('Allergi:'))
+                if (allergy) allergies.push({ name: c.name, allergy: allergy.name.replace('Allergi: ', '').replace('Allergi:', '').trim() })
+              })
+              return (
+                <div key={i} style={{background:'#fff',borderRadius:12,border:'1px solid #E5E7F0',padding:'1.5rem',marginBottom:16,boxShadow:'0 1px 4px rgba(59,91,219,0.05)'}}>
+                  <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:12}}>
+                    <div>
+                      <div style={{fontSize:18,fontWeight:700,color:'#1A1B2E',marginBottom:4}}>{p.project}</div>
+                      <div style={{fontSize:13,color:'#6B7280'}}>📅 {fromDate}{dates.length > 1 ? ' — ' + toDate : ''}</div>
+                    </div>
+                    <div style={{fontSize:12,fontWeight:600,color:'#3B5BDB',background:'#EEF2FF',borderRadius:20,padding:'4px 12px'}}>{uniqueCrew.length} crew</div>
                   </div>
-                  <div style={{fontSize:12,fontWeight:600,color:'#3B5BDB',background:'#EEF2FF',borderRadius:20,padding:'4px 12px'}}>{uniqueCrew.length} crew</div>
+                  <div style={{marginBottom:12}}>
+                    <div style={{fontSize:11,fontWeight:700,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:8}}>Crew</div>
+                    <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+                      {uniqueCrew.map((c, j) => {
+                        const fullCrew = crew.find(x => x.id === c.id)
+                        const col = COLORS[(fullCrew?.color_index || j) % COLORS.length]
+                        return (
+                          <div key={j} style={{display:'flex',alignItems:'center',gap:6,background:'#F8F9FE',borderRadius:8,padding:'6px 10px',border:'1px solid #E5E7F0'}}>
+                            <div style={{width:24,height:24,borderRadius:'50%',background:col.bg,color:col.text,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700}}>{c.initials}</div>
+                            <span style={{fontSize:13,fontWeight:500,color:'#1A1B2E'}}>{c.name}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                  {allergies.length > 0 && (
+                    <div style={{background:'#FFF8F0',borderRadius:8,padding:'12px 14px',border:'1px solid #FFD8A8'}}>
+                      <div style={{fontSize:11,fontWeight:700,color:'#854F0B',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:8}}>⚠️ Allergier / kosthold</div>
+                      {allergies.map((a, j) => <div key={j} style={{fontSize:13,color:'#854F0B',marginBottom:4}}><strong>{a.name}:</strong> {a.allergy}</div>)}
+                    </div>
+                  )}
+                  {allergies.length === 0 && <div style={{fontSize:12,color:'#9CA3AF'}}>✅ Ingen registrerte allergier</div>}
                 </div>
-                <div style={{marginBottom:12}}>
-                  <div style={{fontSize:11,fontWeight:700,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:8}}>Crew</div>
-                  <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
-                    {uniqueCrew.map((c, j) => {
-                      const fullCrew = crew.find(x => x.id === c.id)
-                      const col = COLORS[(fullCrew?.color_index || j) % COLORS.length]
-                      return (
-                        <div key={j} style={{display:'flex',alignItems:'center',gap:6,background:'#F8F9FE',borderRadius:8,padding:'6px 10px',border:'1px solid #E5E7F0'}}>
-                          <div style={{width:24,height:24,borderRadius:'50%',background:col.bg,color:col.text,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700}}>{c.initials}</div>
-                          <span style={{fontSize:13,fontWeight:500,color:'#1A1B2E'}}>{c.name}</span>
-                        </div>
-                      )
-                    })}
-                  </div>
+              )
+            }
+
+            return <>
+              {upcoming.length > 0 && <>
+                <div style={{fontSize:16,fontWeight:700,color:'#1A1B2E',marginBottom:12,display:'flex',alignItems:'center',gap:8}}>
+                  🗓 Kommende prosjekter <span style={{fontSize:12,fontWeight:600,color:'#3B5BDB',background:'#EEF2FF',borderRadius:20,padding:'2px 10px'}}>{upcoming.length}</span>
                 </div>
-                {allergies.length > 0 && (
-                  <div style={{background:'#FFF8F0',borderRadius:8,padding:'12px 14px',border:'1px solid #FFD8A8'}}>
-                    <div style={{fontSize:11,fontWeight:700,color:'#854F0B',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:8}}>⚠️ Allergier / kosthold</div>
-                    {allergies.map((a, j) => (
-                      <div key={j} style={{fontSize:13,color:'#854F0B',marginBottom:4}}>
-                        <strong>{a.name}:</strong> {a.allergy}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {allergies.length === 0 && (
-                  <div style={{fontSize:12,color:'#9CA3AF'}}>✅ Ingen registrerte allergier</div>
-                )}
-              </div>
-            )
-          })}
+                {upcoming.map((p,i) => renderProject(p,i))}
+              </>}
+              {past.length > 0 && <>
+                <div style={{fontSize:16,fontWeight:700,color:'#6B7280',marginBottom:12,marginTop: upcoming.length > 0 ? 24 : 0,display:'flex',alignItems:'center',gap:8}}>
+                  ✅ Fullførte prosjekter <span style={{fontSize:12,fontWeight:600,color:'#6B7280',background:'#F0F2FF',borderRadius:20,padding:'2px 10px'}}>{past.length}</span>
+                </div>
+                {past.map((p,i) => renderProject(p, i + upcoming.length))}
+              </>}
+            </>
+          })()}
         </div>
       )}
 
@@ -1106,6 +1145,36 @@ export default function BookingPage({ user }) {
             <button style={s.submitBtn} onClick={saveBulkBooking} disabled={bulkSaving || !bulkFrom || !bulkTo || !bulkProject}>
               {bulkSaving ? 'Booker...' : `Book ${selectedCrew.length} crew`}
             </button>
+          </div>
+        </div>
+      )}
+
+      {myProfileOpen && (
+        <div style={s.overlay} onClick={() => setMyProfileOpen(false)}>
+          <div style={{...s.modal,maxWidth:400}} onClick={e => e.stopPropagation()}>
+            <button style={s.closeBtn} onClick={() => setMyProfileOpen(false)}>✕</button>
+            <div style={{background:'linear-gradient(135deg,#3B5BDB,#7048E8)',margin:'-2rem -2rem 1.5rem',padding:'24px',borderRadius:'14px 14px 0 0'}}>
+              <div style={{fontSize:28,marginBottom:8}}>👤</div>
+              <div style={{fontSize:20,fontWeight:700,color:'#fff'}}>{userName || 'Din profil'}</div>
+            </div>
+            <div style={{marginBottom:14}}>
+              <label style={s.formLabel}>Navn</label>
+              <input style={s.formInput} value={userName} onChange={e => { localStorage.setItem('zcrew_username', e.target.value); }} placeholder="Ditt navn" onBlur={e => { localStorage.setItem('zcrew_username', e.target.value); }} />
+            </div>
+            <div style={{marginBottom:14}}>
+              <label style={s.formLabel}>Tittel / rolle</label>
+              <input style={s.formInput} value={myProfileForm.title} onChange={e => setMyProfileForm(f => ({...f, title: e.target.value}))} placeholder="f.eks. Prosjektleder" />
+            </div>
+            <div style={{marginBottom:14}}>
+              <label style={s.formLabel}>Telefonnummer</label>
+              <input style={s.formInput} value={myProfileForm.phone} onChange={e => setMyProfileForm(f => ({...f, phone: e.target.value}))} placeholder="f.eks. 98765432" type="tel" />
+            </div>
+            <div style={{marginBottom:20}}>
+              <label style={s.formLabel}>E-post</label>
+              <input style={s.formInput} value={myProfileForm.email} onChange={e => setMyProfileForm(f => ({...f, email: e.target.value}))} placeholder="navn@zevent.no" type="email" />
+            </div>
+            <button style={s.submitBtn} onClick={saveMyProfile}>Lagre profil</button>
+            <button style={{...s.submitBtn,marginTop:10,background:'none',border:'1px solid #C7D0F0',color:'#3B5BDB',boxShadow:'none'}} onClick={() => { setMyProfileOpen(false); setChangePasswordOpen(true); setPasswordError(''); setPasswordSuccess(false) }}>🔑 Bytt passord</button>
           </div>
         </div>
       )}
