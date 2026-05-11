@@ -356,7 +356,7 @@ export default function BookingPage({ user }) {
     <div style={s.page}>
       <div style={s.header}>
         <div style={{display:'flex',alignItems:'center',gap:14}}>
-          <img src="/Z_logo_04.jpg" alt="Z Event" style={{width:40,height:40,objectFit:'contain'}} />
+          <img src="/Z_logo.png" alt="Z Event" style={{width:52,height:52,objectFit:'contain'}} />
           <div>
             <span style={s.brand}>Z Event</span>
             <h1 style={s.title}>Z Crew Portal</h1>
