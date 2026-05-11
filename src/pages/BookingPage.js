@@ -726,6 +726,36 @@ export default function BookingPage({ user }) {
         </div>
       )}
 
+      {view === 'mine' && (
+        <div>
+          <div style={{marginBottom:'1rem',fontSize:13,color:'#6B7280'}}>
+            Viser prosjekter du har booket som <strong>{userName || 'deg'}</strong>
+          </div>
+          {loadingProjects && <div style={s.empty}>Laster prosjekter...</div>}
+          {!loadingProjects && myProjects.length === 0 && (
+            <div style={s.empty}>Ingen prosjekter funnet. Bookinger du gjør vises her.</div>
+          )}
+          {(() => {
+            const today = new Date().toISOString().slice(0,10)
+            const upcoming = myProjects.filter(p => p.bookings.some(b => b.date >= today))
+            const past = myProjects.filter(p => p.bookings.every(b => b.date < today))
+            return <>
+              {upcoming.length > 0 && <>
+                <div style={{fontSize:16,fontWeight:700,color:'#1A1B2E',marginBottom:12,display:'flex',alignItems:'center',gap:8}}>
+                  🗓 Kommende prosjekter <span style={{fontSize:12,fontWeight:600,color:'#3B5BDB',background:'#EEF2FF',borderRadius:20,padding:'2px 10px'}}>{upcoming.length}</span>
+                </div>
+                {upcoming.map((p,i) => <ProjectCard key={i} p={p} i={i} crew={crew} />)}
+              </>}
+              {past.length > 0 && <>
+                <div style={{fontSize:16,fontWeight:700,color:'#6B7280',marginBottom:12,marginTop:upcoming.length>0?24:0,display:'flex',alignItems:'center',gap:8}}>
+                  ✅ Fullførte prosjekter <span style={{fontSize:12,fontWeight:600,color:'#6B7280',background:'#F0F2FF',borderRadius:20,padding:'2px 10px'}}>{past.length}</span>
+                </div>
+                {past.map((p,i) => <ProjectCard key={i+upcoming.length} p={p} i={i} crew={crew} />)}
+              </>}
+            </>
+          })()}
+        </div>
+
       {/* Mine prosjekter view */}
                       )}
                     </div>
@@ -960,35 +990,6 @@ export default function BookingPage({ user }) {
       )}
 
       {/* Status change modal */}
-      {view === 'mine' && (
-        <div>
-          <div style={{marginBottom:'1rem',fontSize:13,color:'#6B7280'}}>
-            Viser prosjekter du har booket som <strong>{userName || 'deg'}</strong>
-          </div>
-          {loadingProjects && <div style={s.empty}>Laster prosjekter...</div>}
-          {!loadingProjects && myProjects.length === 0 && (
-            <div style={s.empty}>Ingen prosjekter funnet. Bookinger du gjør vises her.</div>
-          )}
-          {(() => {
-            const today = new Date().toISOString().slice(0,10)
-            const upcoming = myProjects.filter(p => p.bookings.some(b => b.date >= today))
-            const past = myProjects.filter(p => p.bookings.every(b => b.date < today))
-            return <>
-              {upcoming.length > 0 && <>
-                <div style={{fontSize:16,fontWeight:700,color:'#1A1B2E',marginBottom:12,display:'flex',alignItems:'center',gap:8}}>
-                  🗓 Kommende prosjekter <span style={{fontSize:12,fontWeight:600,color:'#3B5BDB',background:'#EEF2FF',borderRadius:20,padding:'2px 10px'}}>{upcoming.length}</span>
-                </div>
-                {upcoming.map((p,i) => <ProjectCard key={i} p={p} i={i} crew={crew} />)}
-              </>}
-              {past.length > 0 && <>
-                <div style={{fontSize:16,fontWeight:700,color:'#6B7280',marginBottom:12,marginTop:upcoming.length>0?24:0,display:'flex',alignItems:'center',gap:8}}>
-                  ✅ Fullførte prosjekter <span style={{fontSize:12,fontWeight:600,color:'#6B7280',background:'#F0F2FF',borderRadius:20,padding:'2px 10px'}}>{past.length}</span>
-                </div>
-                {past.map((p,i) => <ProjectCard key={i+upcoming.length} p={p} i={i} crew={crew} />)}
-              </>}
-            </>
-          })()}
-        </div>
       )}
 
       {changeTarget && (
