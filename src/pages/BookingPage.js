@@ -359,7 +359,7 @@ export default function BookingPage({ user }) {
           <img src="/Z_logo_04.jpg" alt="Z Event" style={{width:40,height:40,objectFit:'contain'}} />
           <div>
             <span style={s.brand}>Z Event</span>
-            <h1 style={s.title}>Crew booking</h1>
+            <h1 style={s.title}>Z Crew Portal</h1>
           </div>
         </div>
         <div style={s.headerRight}>
