@@ -180,8 +180,6 @@ export default function BookingPage({ user }) {
     if (savedProfile) {
       try { setMyProfileForm(JSON.parse(savedProfile)) } catch(e) {}
     }
-    const savedProfile = localStorage.getItem('zcrew_profile')
-    if (savedProfile) { try { setMyProfileForm(JSON.parse(savedProfile)) } catch(e) {} }
     const saved = localStorage.getItem('zcrew_username')
     if (saved) setUserName(saved)
     else setSettingName(true)
