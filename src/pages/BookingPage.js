@@ -501,7 +501,7 @@ export default function BookingPage({ user }) {
                   <div style={{display:'flex',flexDirection:'column',alignItems:'flex-start',gap:4}}>
                     <span>CREW</span>
                     <div style={{display:'flex',alignItems:'center',gap:8}}>
-                      <button style={{fontSize:11,fontWeight:600,border:'none',background:'none',cursor:'pointer',color:bulkMode?'#3B5BDB':'#9CA3AF',fontFamily:"'Avenir', 'Avenir Next', 'Century Gothic', 'Nunito', sans-serif",padding:0,textTransform:'none',letterSpacing:0}}
+                      <button style={{fontSize:13,fontWeight:600,border:'none',background:'none',cursor:'pointer',color:bulkMode?'#3B5BDB':'#6B7280',fontFamily:"'Avenir', 'Avenir Next', 'Century Gothic', 'Nunito', sans-serif",padding:0,textTransform:'none',letterSpacing:0}}
                         onClick={() => { setBulkMode(!bulkMode); setSelectedCrew([]) }}>
                         {bulkMode ? `☑ ${selectedCrew.length} valgt` : '☐ Velg flere'}
                       </button>
