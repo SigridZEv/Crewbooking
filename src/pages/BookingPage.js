@@ -60,6 +60,7 @@ export default function BookingPage({ user }) {
   const [addForm, setAddForm] = useState({ first: '', last: '', rate: '', jobs: '', bio: '', skills: '', colorIndex: 0 })
   const [addError, setAddError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [userName, setUserName] = useState(localStorage.getItem('zcrew_username') || '')
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [myProfileOpen, setMyProfileOpen] = useState(false)
   const [myProfileForm, setMyProfileForm] = useState({ title: '', phone: '', email: '' })
