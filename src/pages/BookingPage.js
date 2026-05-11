@@ -523,68 +523,6 @@ export default function BookingPage({ user }) {
                   )}
                 </div>
 
-                {/* Editable rate */}
-                <div style={s.msec}>
-                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
-                    <div style={s.msecHdr}>Timepris</div>
-                    {!editingRate && <button style={s.editBtn} onClick={() => { setEditingRate(true); setRateInput(String(c.rate)) }}>Rediger</button>}
-                  </div>
-                  {editingRate ? (
-                    <div style={{display:'flex',gap:8,alignItems:'center'}}>
-                      <input style={{...s.formInput,width:120}} type="number" value={rateInput} onChange={e => setRateInput(e.target.value)} onKeyDown={e => { if(e.key==='Enter') saveRate() }} autoFocus />
-                      <span style={{fontSize:13,color:'#888'}}>kr/t</span>
-                      <button style={s.miniBtn} onClick={saveRate}>Lagre</button>
-                      <button style={s.clearBtn} onClick={() => setEditingRate(false)}>Avbryt</button>
-                    </div>
-                  ) : (
-                    <div style={{fontSize:20,fontWeight:600,color:'#1a1a18'}}>{c.rate} kr<span style={{fontSize:13,fontWeight:400,color:'#888'}}>/t</span></div>
-                  )}
-                </div>
-
-                {/* Editable allergy */}
-                <div style={s.msec}>
-                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
-                    <div style={s.msecHdr}>Allergi / kosthold</div>
-                    {!editingAllergy && <button style={s.editBtn} onClick={() => setEditingAllergy(true)}>Rediger</button>}
-                  </div>
-                  {editingAllergy ? (
-                    <div style={{display:'flex',flexDirection:'column',gap:8}}>
-                      <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                        {ALLERGIES.map(a => (
-                          <button key={a} onClick={() => setAllergyInput(a === 'Ingen' ? '' : (allergyInput ? allergyInput + ', ' + a : a))}
-                            style={{padding:'5px 12px',borderRadius:20,fontSize:12,cursor:'pointer',border:'1px solid #C7D0F0',background:'#EEF2FF',color:'#3B5BDB',fontWeight:500,fontFamily:"'Avenir','Avenir Next',sans-serif"}}>
-                            {a}
-                          </button>
-                        ))}
-                      </div>
-                      <input style={{...s.formInput}} value={allergyInput} onChange={e => setAllergyInput(e.target.value)} placeholder="Eller skriv fritt..." autoFocus onKeyDown={e => { if(e.key==='Enter') saveAllergy() }} />
-                      <div style={{display:'flex',gap:8}}>
-                        <button style={s.miniBtn} onClick={saveAllergy}>Lagre</button>
-                        <button style={s.clearBtn} onClick={() => setEditingAllergy(false)}>Avbryt</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{fontSize:13,color: allergyInput ? '#A32D2D' : '#aaa'}}>{allergyInput || 'Ingen registrert'}</div>
-                  )}
-                </div>
-
-                {/* Sertifikat */}
-                <div style={s.msec}>
-                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
-                    <div style={s.msecHdr}>Sertifikat</div>
-                    {!editingCertificate && <button style={s.editBtn} onClick={() => setEditingCertificate(true)}>Rediger</button>}
-                  </div>
-                  {editingCertificate ? (
-                    <div style={{display:'flex',gap:8}}>
-                      <input style={{...s.formInput,flex:1}} value={certificateInput} onChange={e => setCertificateInput(e.target.value)} placeholder="f.eks. JA, Klasse B, Truck..." autoFocus onKeyDown={e => { if(e.key==='Enter') saveCertificate() }} />
-                      <button style={s.miniBtn} onClick={saveCertificate}>Lagre</button>
-                      <button style={s.clearBtn} onClick={() => setEditingCertificate(false)}>Avbryt</button>
-                    </div>
-                  ) : (
-                    <div style={{fontSize:13,color: certificateInput ? '#1a1a18' : '#555'}}>{certificateInput || 'Ikke registrert'}</div>
-                  )}
-                </div>
-
                 {/* Editable bio */}
                 <div style={s.msec}>
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
@@ -603,71 +541,6 @@ export default function BookingPage({ user }) {
                     <p style={{fontSize:13,color:'#666',lineHeight:1.6,margin:0}}>{c.bio || '-'}</p>
                   )}
                 </div>
-
-                <div style={s.infoGrid}>
-                  <div style={s.infoCell}>
-                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
-                      <div style={s.msecHdr}>Fodselsdato</div>
-                      {!editingBirthdate && <button style={s.editBtn} onClick={() => setEditingBirthdate(true)}>Rediger</button>}
-                    </div>
-                    {editingBirthdate ? (
-                      <div style={{display:'flex',gap:6}}>
-                        <input style={{...s.formInput,flex:1}} type='date' value={birthdateInput} onChange={e => setBirthdateInput(e.target.value)} autoFocus />
-                        <button style={s.miniBtn} onClick={saveBirthdate}>Lagre</button>
-                        <button style={s.clearBtn} onClick={() => setEditingBirthdate(false)}>X</button>
-                      </div>
-                    ) : (
-                      <div style={{fontSize:13,color:c.birthdate?'#1a1a18':'#aaa'}}>
-                        {c.birthdate ? new Date(c.birthdate).toLocaleDateString('nb-NO') : 'Ikke registrert'}
-                      </div>
-                    )}
-                  </div>
-                  <div style={s.infoCell}>
-                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
-                      <div style={s.msecHdr}>Bosted</div>
-                      {!editingLocation && <button style={s.editBtn} onClick={() => setEditingLocation(true)}>Rediger</button>}
-                    </div>
-                    {editingLocation ? (
-                      <div style={{display:'flex',gap:6}}>
-                        <input style={{...s.formInput,flex:1}} value={locationInput} onChange={e => setLocationInput(e.target.value)} placeholder='f.eks. Oslo' autoFocus onKeyDown={e => { if(e.key==='Enter') saveLocation() }} />
-                        <button style={s.miniBtn} onClick={saveLocation}>Lagre</button>
-                        <button style={s.clearBtn} onClick={() => setEditingLocation(false)}>X</button>
-                      </div>
-                    ) : (
-                      <div style={{fontSize:13,color:c.location?'#1a1a18':'#aaa'}}>{c.location || 'Ikke registrert'}</div>
-                    )}
-                  </div>
-                </div>
-                <div style={s.msec}>
-                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
-                    <div style={s.msecHdr}>Erfaringer/referanse</div>
-                    {!editingNotes && <button style={s.editBtn} onClick={() => { setEditingNotes(true); setNotesInput(c.notes || '') }}>Rediger</button>}
-                  </div>
-                  {editingNotes ? (
-                    <div style={{display:'flex',flexDirection:'column',gap:8}}>
-                      <textarea style={{...s.formInput,resize:'vertical'}} rows={3} value={notesInput} onChange={e => setNotesInput(e.target.value)} placeholder='Erfaringer, referanser...' autoFocus />
-                      <div style={{display:'flex',gap:8}}>
-                        <button style={s.miniBtn} onClick={saveNotes}>Lagre</button>
-                        <button style={s.clearBtn} onClick={() => setEditingNotes(false)}>Avbryt</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p style={{fontSize:13,color:c.notes?'#444':'#aaa',lineHeight:1.6,margin:0}}>{c.notes || 'Ingen erfaringer registrert'}</p>
-                  )}
-                </div>
-                <div style={s.statsGrid}>
-                  <div style={s.statCard}><div style={s.statLabel}>Ledige dager (uke)</div><div style={s.statVal}>{freeDays} av 7</div></div>
-                  <div style={s.statCard}><div style={s.statLabel}>Gjennomforte jobber</div><div style={s.statVal}>{c.jobs}</div></div>
-                </div>
-
-                {weekBookings.length > 0 && <div style={s.msec}>
-                  <div style={s.msecHdr}>Bookinger denne uken</div>
-                  {weekBookings.map((x,i) => <div key={i} style={s.bookingRow}>
-                    <span style={s.bookingDay}>{x.day}</span>
-                    <span style={s.bookingProject}>{x.b.project}</span>
-                    {x.b.booked_by && <span style={s.bookingBy}>av {x.b.booked_by}</span>}
-                  </div>)}
-                </div>}
 
                 {/* Skills */}
                 <div style={s.msec}>
@@ -709,6 +582,133 @@ export default function BookingPage({ user }) {
               }}>
                 <span style={{...s.dot,background:v.bg,border:'1px solid '+v.c,flexShrink:0}}/>{v.full}
               </button>)}
+                </div>
+                <div style={s.msec}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
+                    <div style={s.msecHdr}>Erfaringer/referanse</div>
+                    {!editingNotes && <button style={s.editBtn} onClick={() => { setEditingNotes(true); setNotesInput(c.notes || '') }}>Rediger</button>}
+                  </div>
+                  {editingNotes ? (
+                    <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                      <textarea style={{...s.formInput,resize:'vertical'}} rows={3} value={notesInput} onChange={e => setNotesInput(e.target.value)} placeholder='Erfaringer, referanser...' autoFocus />
+                      <div style={{display:'flex',gap:8}}>
+                        <button style={s.miniBtn} onClick={saveNotes}>Lagre</button>
+                        <button style={s.clearBtn} onClick={() => setEditingNotes(false)}>Avbryt</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p style={{fontSize:13,color:c.notes?'#444':'#aaa',lineHeight:1.6,margin:0}}>{c.notes || 'Ingen erfaringer registrert'}</p>
+                  )}
+                </div>
+                {/* Sertifikat */}
+                <div style={s.msec}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+                    <div style={s.msecHdr}>Sertifikat</div>
+                    {!editingCertificate && <button style={s.editBtn} onClick={() => setEditingCertificate(true)}>Rediger</button>}
+                  </div>
+                  {editingCertificate ? (
+                    <div style={{display:'flex',gap:8}}>
+                      <input style={{...s.formInput,flex:1}} value={certificateInput} onChange={e => setCertificateInput(e.target.value)} placeholder="f.eks. JA, Klasse B, Truck..." autoFocus onKeyDown={e => { if(e.key==='Enter') saveCertificate() }} />
+                      <button style={s.miniBtn} onClick={saveCertificate}>Lagre</button>
+                      <button style={s.clearBtn} onClick={() => setEditingCertificate(false)}>Avbryt</button>
+                    </div>
+                  ) : (
+                    <div style={{fontSize:13,color: certificateInput ? '#1a1a18' : '#555'}}>{certificateInput || 'Ikke registrert'}</div>
+                  )}
+                </div>
+
+                {/* Editable rate */}
+                <div style={s.msec}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+                    <div style={s.msecHdr}>Timepris</div>
+                    {!editingRate && <button style={s.editBtn} onClick={() => { setEditingRate(true); setRateInput(String(c.rate)) }}>Rediger</button>}
+                  </div>
+                  {editingRate ? (
+                    <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                      <input style={{...s.formInput,width:120}} type="number" value={rateInput} onChange={e => setRateInput(e.target.value)} onKeyDown={e => { if(e.key==='Enter') saveRate() }} autoFocus />
+                      <span style={{fontSize:13,color:'#888'}}>kr/t</span>
+                      <button style={s.miniBtn} onClick={saveRate}>Lagre</button>
+                      <button style={s.clearBtn} onClick={() => setEditingRate(false)}>Avbryt</button>
+                    </div>
+                  ) : (
+                    <div style={{fontSize:20,fontWeight:600,color:'#1a1a18'}}>{c.rate} kr<span style={{fontSize:13,fontWeight:400,color:'#888'}}>/t</span></div>
+                  )}
+                </div>
+
+                <div style={s.infoGrid}>
+                  <div style={s.infoCell}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
+                      <div style={s.msecHdr}>Fodselsdato</div>
+                      {!editingBirthdate && <button style={s.editBtn} onClick={() => setEditingBirthdate(true)}>Rediger</button>}
+                    </div>
+                    {editingBirthdate ? (
+                      <div style={{display:'flex',gap:6}}>
+                        <input style={{...s.formInput,flex:1}} type='date' value={birthdateInput} onChange={e => setBirthdateInput(e.target.value)} autoFocus />
+                        <button style={s.miniBtn} onClick={saveBirthdate}>Lagre</button>
+                        <button style={s.clearBtn} onClick={() => setEditingBirthdate(false)}>X</button>
+                      </div>
+                    ) : (
+                      <div style={{fontSize:13,color:c.birthdate?'#1a1a18':'#aaa'}}>
+                        {c.birthdate ? new Date(c.birthdate).toLocaleDateString('nb-NO') : 'Ikke registrert'}
+                      </div>
+                    )}
+                  </div>
+                  <div style={s.infoCell}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
+                      <div style={s.msecHdr}>Bosted</div>
+                      {!editingLocation && <button style={s.editBtn} onClick={() => setEditingLocation(true)}>Rediger</button>}
+                    </div>
+                    {editingLocation ? (
+                      <div style={{display:'flex',gap:6}}>
+                        <input style={{...s.formInput,flex:1}} value={locationInput} onChange={e => setLocationInput(e.target.value)} placeholder='f.eks. Oslo' autoFocus onKeyDown={e => { if(e.key==='Enter') saveLocation() }} />
+                        <button style={s.miniBtn} onClick={saveLocation}>Lagre</button>
+                        <button style={s.clearBtn} onClick={() => setEditingLocation(false)}>X</button>
+                      </div>
+                    ) : (
+                      <div style={{fontSize:13,color:c.location?'#1a1a18':'#aaa'}}>{c.location || 'Ikke registrert'}</div>
+                    )}
+                  </div>
+                {/* Editable allergy */}
+                <div style={s.msec}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+                    <div style={s.msecHdr}>Allergi / kosthold</div>
+                    {!editingAllergy && <button style={s.editBtn} onClick={() => setEditingAllergy(true)}>Rediger</button>}
+                  </div>
+                  {editingAllergy ? (
+                    <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                      <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                        {ALLERGIES.map(a => (
+                          <button key={a} onClick={() => setAllergyInput(a === 'Ingen' ? '' : (allergyInput ? allergyInput + ', ' + a : a))}
+                            style={{padding:'5px 12px',borderRadius:20,fontSize:12,cursor:'pointer',border:'1px solid #C7D0F0',background:'#EEF2FF',color:'#3B5BDB',fontWeight:500,fontFamily:"'Avenir','Avenir Next',sans-serif"}}>
+                            {a}
+                          </button>
+                        ))}
+                      </div>
+                      <input style={{...s.formInput}} value={allergyInput} onChange={e => setAllergyInput(e.target.value)} placeholder="Eller skriv fritt..." autoFocus onKeyDown={e => { if(e.key==='Enter') saveAllergy() }} />
+                      <div style={{display:'flex',gap:8}}>
+                        <button style={s.miniBtn} onClick={saveAllergy}>Lagre</button>
+                        <button style={s.clearBtn} onClick={() => setEditingAllergy(false)}>Avbryt</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{fontSize:13,color: allergyInput ? '#A32D2D' : '#aaa'}}>{allergyInput || 'Ingen registrert'}</div>
+                  )}
+                </div>
+
+                <div style={s.statsGrid}>
+                  <div style={s.statCard}><div style={s.statLabel}>Ledige dager (uke)</div><div style={s.statVal}>{freeDays} av 7</div></div>
+                  <div style={s.statCard}><div style={s.statLabel}>Gjennomforte jobber</div><div style={s.statVal}>{c.jobs}</div></div>
+                </div>
+
+                {weekBookings.length > 0 && <div style={s.msec}>
+                  <div style={s.msecHdr}>Bookinger denne uken</div>
+                  {weekBookings.map((x,i) => <div key={i} style={s.bookingRow}>
+                    <span style={s.bookingDay}>{x.day}</span>
+                    <span style={s.bookingProject}>{x.b.project}</span>
+                    {x.b.booked_by && <span style={s.bookingBy}>av {x.b.booked_by}</span>}
+                  </div>)}
+                </div>}
+
             </> : <>
               <div style={{fontSize:13,color:'#888',marginBottom:12}}>{STATUS[pendingStatus].full} - fyll inn detaljer</div>
               <label style={s.formLabel}>Prosjekt / arrangement</label>
