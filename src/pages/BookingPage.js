@@ -81,6 +81,8 @@ export default function BookingPage({ user }) {
   const [editingAllergy, setEditingAllergy] = useState(false)
   const [editingCertificate, setEditingCertificate] = useState(false)
   const [certificateInput, setCertificateInput] = useState('')
+  const [crewComments, setCrewComments] = useState([])
+  const [newComment, setNewComment] = useState('')
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState('')
   const [editingLocation, setEditingLocation] = useState(false)
@@ -147,6 +149,11 @@ export default function BookingPage({ user }) {
     setAllergyInput(allergySk ? allergySk.name.replace('Allergi: ', '').replace('Allergi:', '') : '')
     setEditingCertificate(false)
     const certSk = (c.skills || []).find(s => s.name.startsWith('Sertifikat:'))
+    setCrewComments([])
+    setNewComment('')
+    supabase.from('crew_comments').select('*').eq('crew_id', c.id).order('created_at', { ascending: true }).then(({ data }) => {
+      if (data) setCrewComments(data)
+    })
     setCertificateInput(certSk ? certSk.name.replace('Sertifikat: ', '').replace('Sertifikat:', '').trim() : '')
     setEditingName(false)
     setNameInput(c.name)
@@ -239,6 +246,24 @@ export default function BookingPage({ user }) {
     setProfileOpen(prev => ({ ...prev, notes: notesInput }))
     setEditingNotes(false)
     showToast('Kommentar oppdatert')
+  }
+
+  async function addCrewComment() {
+    if (!newComment.trim() || !profileOpen) return
+    const { data } = await supabase.from('crew_comments').insert({
+      crew_id: profileOpen.id,
+      author: userName || 'Ukjent',
+      content: newComment.trim()
+    }).select().single()
+    if (data) {
+      setCrewComments(prev => [...prev, data])
+      setNewComment('')
+    }
+  }
+
+  async function deleteCrewComment(id) {
+    await supabase.from('crew_comments').delete().eq('id', id)
+    setCrewComments(prev => prev.filter(c => c.id !== id))
   }
 
   async function saveCertificate() {
