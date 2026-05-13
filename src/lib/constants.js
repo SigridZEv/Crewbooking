@@ -25,11 +25,14 @@ export const ALLERGIES = [
   'Sesamfrø',
 ]
 
-// Booking status definitions: label = the one-letter chip, full = the spoken label,
-// bg/c = pill background and text color.
+// Booking status definitions.
+//   label = legacy one-letter chip (kept for compatibility)
+//   short = label shown on the calendar pill
+//   full  = spoken label used in legend, tooltips and status filter
+//   bg, c = pill background and text color
 export const STATUS = {
-  free:        { label: 'L', full: 'Ledig',             bg: '#E1F5EE', c: '#0F6E56' },
-  booked:      { label: 'B', full: 'Booket',            bg: '#FCEBEB', c: '#A32D2D' },
-  requested:   { label: 'F', full: 'Forespurt',         bg: '#FAEEDA', c: '#854F0B' },
-  unavailable: { label: '-', full: 'Ikke tilgjengelig', bg: '#F1EFE8', c: '#888780' },
+  free:        { label: 'L', short: 'Ledig',     full: 'Ledig',             bg: '#E1F5EE', c: '#0F6E56' },
+  booked:      { label: 'B', short: 'Booket',    full: 'Booket',            bg: '#FCEBEB', c: '#A32D2D' },
+  requested:   { label: 'F', short: 'Forespurt', full: 'Forespurt',         bg: '#FAEEDA', c: '#854F0B' },
+  unavailable: { label: '-', short: 'Borte',     full: 'Ikke tilgjengelig', bg: '#F1EFE8', c: '#888780' },
 }
