@@ -377,6 +377,8 @@ export default function BookingPage({ user }) {
 
   if (loading) return <div style={s.loading}>Laster...</div>
 
+  const todayStr = dk(new Date())
+
   return (
     <div style={s.page}>
       <div style={s.header}>
@@ -384,7 +386,7 @@ export default function BookingPage({ user }) {
           <img src="/Z_logo.png" alt="Z Event" style={s.brandLogo} />
           <div>
             <span style={s.brand}>Z Event</span>
-            <h1 style={s.title}>Crew booking</h1>
+            <h1 style={s.title}>Crew Portal</h1>
           </div>
         </div>
         <div style={s.headerRight}>
@@ -432,6 +434,7 @@ export default function BookingPage({ user }) {
           )}
           <div style={s.weekNav}>
             <button style={s.navBtn} onClick={() => setWeekOffset(w => w-1)}>Forrige</button>
+            {weekOffset !== 0 && <button style={s.todayBtn} onClick={() => setWeekOffset(0)}>I dag</button>}
             <span style={s.weekLabel}>{days[0].toLocaleDateString('nb-NO',{day:'numeric',month:'long'})} - {days[6].toLocaleDateString('nb-NO',{day:'numeric',month:'long',year:'numeric'})}</span>
             <button style={s.navBtn} onClick={() => setWeekOffset(w => w+1)}>Neste</button>
           </div>
@@ -442,7 +445,17 @@ export default function BookingPage({ user }) {
             <table style={s.table}>
               <thead><tr>
                 <th style={{...s.th,textAlign:'left',minWidth:150}}>Crew</th>
-                {days.map(d => <th key={dk(d)} style={{...s.th, background: filterDay===dk(d)?'#f0f7ff':undefined}}>{fmtDay(d)}</th>)}
+                {days.map((d, i) => {
+                  const dStr = dk(d)
+                  const isWeekend = i >= 5
+                  const isToday = dStr === todayStr
+                  return <th key={dStr} style={{
+                    ...s.th,
+                    ...(isWeekend ? s.weekendHeader : {}),
+                    ...(isToday ? s.todayHeader : {}),
+                    ...(filterDay===dStr ? {background:'#f0f7ff'} : {}),
+                  }}>{fmtDay(d)}</th>
+                })}
               </tr></thead>
               <tbody>
                 {filteredCal.length === 0 && <tr><td colSpan={8} style={s.empty}>Ingen crew matcher filteret.</td></tr>}
@@ -455,17 +468,24 @@ export default function BookingPage({ user }) {
                         <span style={s.crewName}>{c.name}</span>
                       </div>
                     </td>
-                    {days.map(d => {
+                    {days.map((d, i) => {
                       const date = dk(d)
                       const st = getStatus(c.id, date)
                       const cfg = STATUS[st]
                       const booking = getBooking(c.id, date)
                       const isHighlighted = filterDay === date
-                      return <td key={date} style={{...s.dayCell, background: isHighlighted?'#f0f7ff':undefined}}>
+                      const isWeekend = i >= 5
+                      const isToday = date === todayStr
+                      return <td key={date} style={{
+                        ...s.dayCell,
+                        ...(isWeekend ? s.weekendCell : {}),
+                        ...(isToday ? s.todayCell : {}),
+                        ...(isHighlighted ? {background:'#f0f7ff'} : {}),
+                      }}>
                         <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
                           <button style={{...s.pill,background:cfg.bg,color:cfg.c}}
                             title={booking && booking.project ? cfg.full + ' - ' + booking.project : cfg.full}
-                            onClick={() => openChange(c, date, fmtDay(d))}>{cfg.label}</button>
+                            onClick={() => openChange(c, date, fmtDay(d))}>{cfg.short}</button>
                           {booking && booking.project && <span style={s.projectLabel}>{booking.project}</span>}
                           {booking && booking.booked_by && <span style={s.bookedByLabel}>av {booking.booked_by}</span>}
                         </div>
