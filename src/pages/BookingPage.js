@@ -1,45 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-
-const COLORS = [
-  { bg: '#B5D4F4', text: '#0C447C' },
-  { bg: '#9FE1CB', text: '#085041' },
-  { bg: '#FAC775', text: '#633806' },
-  { bg: '#F4C0D1', text: '#72243E' },
-  { bg: '#CECBF6', text: '#3C3489' },
-  { bg: '#D3D1C7', text: '#2C2C2A' },
-  { bg: '#C0DD97', text: '#27500A' },
-  { bg: '#F5C4B3', text: '#712B13' },
-]
-
-const ALLERGIES = ['Ingen', 'Melk / laktose', 'Gluten / hvete', 'Egg', 'Nøtter', 'Fisk', 'Skalldyr', 'Soya', 'Sesamfrø']
-
-const STATUS = {
-  free:        { label: 'L', full: 'Ledig',             bg: '#E1F5EE', c: '#0F6E56' },
-  booked:      { label: 'B', full: 'Booket',            bg: '#FCEBEB', c: '#A32D2D' },
-  requested:   { label: 'F', full: 'Forespurt',         bg: '#FAEEDA', c: '#854F0B' },
-  unavailable: { label: '-', full: 'Ikke tilgjengelig', bg: '#F1EFE8', c: '#888780' },
-}
-
-function getWeekDates(offset) {
-  const now = new Date()
-  const day = now.getDay()
-  const mon = new Date(now)
-  mon.setDate(now.getDate() - (day === 0 ? 6 : day - 1) + offset * 7)
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(mon)
-    d.setDate(mon.getDate() + i)
-    return d
-  })
-}
-
-function fmtDay(d) {
-  return d.toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })
-}
-
-function dk(d) {
-  return d.toISOString().slice(0, 10)
-}
+import { COLORS, ALLERGIES, STATUS } from '../lib/constants'
+import { getWeekDates, fmtDay, dk } from '../lib/dateUtils'
+import { s } from '../lib/styles'
 
 export default function BookingPage({ user }) {
   const [view, setView] = useState('cal')
@@ -839,77 +802,4 @@ export default function BookingPage({ user }) {
       {toast && <div style={s.toast}>{toast}</div>}
     </div>
   )
-}
-
-const s = {
-  page:{maxWidth:1200,margin:'0 auto',padding:'1.5rem 1rem',fontFamily:'system-ui, sans-serif',color:'#1a1a18',position:'relative',minHeight:'100vh'},
-  loading:{padding:'3rem',textAlign:'center',color:'#888',fontFamily:'system-ui, sans-serif'},
-  header:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1.5rem',flexWrap:'wrap',gap:10},
-  headerRight:{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'},
-  brand:{fontSize:11,fontWeight:500,color:'#888',letterSpacing:'0.08em',textTransform:'uppercase'},
-  title:{fontSize:20,fontWeight:500,margin:0},
-  addBtn:{padding:'7px 14px',fontSize:13,borderRadius:8,border:'0.5px solid #d0cfc8',background:'#fff',color:'#1a1a18',cursor:'pointer',fontFamily:'inherit',whiteSpace:'nowrap'},
-  menuItem:{display:'block',width:'100%',padding:'11px 16px',fontSize:14,fontWeight:500,border:'none',background:'none',color:'#1A1B2E',cursor:'pointer',textAlign:'left',fontFamily:'inherit'},
-  logoutBtn:{padding:'7px 14px',fontSize:13,borderRadius:8,border:'0.5px solid #d0cfc8',background:'none',color:'#888',cursor:'pointer',fontFamily:'inherit'},
-  tabs:{display:'flex',gap:4,background:'#f1f0ea',borderRadius:8,padding:4},
-  tab:{padding:'6px 14px',fontSize:13,border:'none',background:'transparent',color:'#888',borderRadius:6,cursor:'pointer',fontFamily:'inherit'},
-  tabActive:{background:'#fff',color:'#1a1a18',border:'0.5px solid #d0cfc8'},
-  filterBar:{display:'flex',gap:8,flexWrap:'wrap',marginBottom:'0.5rem',alignItems:'center'},
-  filterInfo:{fontSize:12,color:'#555',marginBottom:'0.75rem',padding:'6px 10px',background:'#f0f7ff',borderRadius:6},
-  select:{fontSize:13,padding:'6px 10px',borderRadius:8,border:'0.5px solid #d0cfc8',background:'#fff',color:'#1a1a18',fontFamily:'inherit'},
-  search:{fontSize:13,padding:'6px 10px',borderRadius:8,border:'0.5px solid #d0cfc8',background:'#fff',color:'#1a1a18',fontFamily:'inherit',minWidth:160},
-  clearBtn:{fontSize:12,color:'#888',background:'none',border:'none',cursor:'pointer',fontFamily:'inherit',padding:'4px 6px'},
-  weekNav:{display:'flex',alignItems:'center',gap:10,marginBottom:'.75rem'},
-  navBtn:{background:'none',border:'0.5px solid #d0cfc8',borderRadius:8,padding:'5px 10px',cursor:'pointer',fontSize:13,color:'#1a1a18',fontFamily:'inherit'},
-  weekLabel:{fontSize:13,color:'#888'},
-  legend:{display:'flex',gap:14,flexWrap:'wrap',marginBottom:'.75rem'},
-  legendItem:{display:'flex',alignItems:'center',gap:6,fontSize:12,color:'#888'},
-  dot:{width:10,height:10,borderRadius:'50%',display:'inline-block'},
-  tableWrap:{overflowX:'auto'},
-  table:{width:'100%',borderCollapse:'collapse',fontSize:13,minWidth:580},
-  th:{padding:'8px 6px',fontWeight:500,color:'#888',textAlign:'center',fontSize:11,borderBottom:'0.5px solid #e0dfd8'},
-  crewCell:{padding:'8px 10px',borderBottom:'0.5px solid #e0dfd8',whiteSpace:'nowrap'},
-  crewInfo:{display:'flex',alignItems:'center',gap:8,cursor:'pointer'},
-  avatar:{width:30,height:30,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:500,flexShrink:0},
-  crewName:{fontSize:13,fontWeight:500,color:'#1a1a18'},
-  dayCell:{padding:'8px 6px',textAlign:'center',borderBottom:'0.5px solid #e0dfd8',borderLeft:'0.5px solid #e0dfd8',minWidth:110,verticalAlign:'top'},
-  pill:{display:'inline-flex',alignItems:'center',justifyContent:'center',width:32,height:32,borderRadius:'50%',fontSize:11,cursor:'pointer',fontWeight:500,border:'none',fontFamily:'inherit'},
-  projectLabel:{fontSize:10,color:'#444',lineHeight:1.4,marginTop:2,wordBreak:'break-word',maxWidth:100,textAlign:'center'},
-  bookedByLabel:{fontSize:9,color:'#aaa',lineHeight:1.3,textAlign:'center'},
-  crewGrid:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:12},
-  crewCard:{background:'#fff',borderRadius:12,border:'0.5px solid #e0dfd8',padding:'1.25rem',cursor:'pointer'},
-  rate:{fontSize:20,fontWeight:500,color:'#1a1a18'},
-  rateUnit:{fontSize:12,fontWeight:400,color:'#888'},
-  skillTag:{background:'#f5f4f0',border:'0.5px solid #e0dfd8',borderRadius:20,padding:'3px 8px',fontSize:11,color:'#1a1a18'},
-  overlay:{position:'fixed',inset:0,background:'rgba(0,0,0,0.35)',zIndex:100,display:'flex',alignItems:'flex-start',justifyContent:'center',paddingTop:'2rem'},
-  modal:{background:'#fff',borderRadius:16,border:'0.5px solid #e0dfd8',padding:'1.5rem',width:'100%',maxWidth:480,position:'relative',maxHeight:'85vh',overflowY:'auto',margin:'0 1rem'},
-  closeBtn:{position:'absolute',top:12,right:12,background:'none',border:'none',fontSize:18,cursor:'pointer',color:'#888',fontFamily:'inherit'},
-  editBtn:{fontSize:11,color:'#666',background:'none',border:'0.5px solid #d0cfc8',borderRadius:6,padding:'3px 8px',cursor:'pointer',fontFamily:'inherit'},
-  modalAvatar:{width:56,height:56,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:500,marginBottom:10},
-  infoGrid:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginTop:'1.1rem'},
-  infoCell:{background:'#f5f4f0',borderRadius:8,padding:'10px 12px'},
-  statsGrid:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginTop:'1.1rem'},
-  statCard:{background:'#f5f4f0',borderRadius:8,padding:'10px 12px'},
-  statLabel:{fontSize:11,color:'#888',marginBottom:3},
-  statVal:{fontSize:16,fontWeight:500,color:'#1a1a18'},
-  msec:{marginTop:0,paddingTop:'1rem',borderTop:'1px solid #f0f0ea'},
-  msecHdr:{fontSize:12,fontWeight:700,color:'#1a1a18',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6},
-  bookingRow:{display:'flex',alignItems:'center',gap:8,padding:'5px 0',borderBottom:'0.5px solid #e0dfd8',fontSize:13},
-  bookingDay:{color:'#888',minWidth:80,fontSize:12},
-  bookingProject:{fontWeight:500,color:'#1a1a18',flex:1},
-  bookingBy:{fontSize:11,color:'#aaa'},
-  skillRow:{display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderBottom:'0.5px solid #e0dfd8'},
-  skillName:{fontSize:13,fontWeight:500,color:'#1a1a18',minWidth:110},
-  comment:{flex:1,fontSize:12,color:'#444',lineHeight:1.5,cursor:'pointer',padding:'2px 4px',borderRadius:4},
-  commentEmpty:{color:'#aaa',fontStyle:'italic'},
-  commentInput:{flex:1,fontSize:12,padding:'4px 8px',borderRadius:6,border:'0.5px solid #b0afaa',background:'#fff',color:'#1a1a18',fontFamily:'inherit',outline:'none'},
-  delSkill:{background:'none',border:'none',cursor:'pointer',color:'#aaa',fontSize:13,padding:'2px 4px',lineHeight:1,fontFamily:'inherit',flexShrink:0},
-  miniBtn:{padding:'5px 10px',fontSize:12,borderRadius:8,border:'0.5px solid #d0cfc8',background:'#fff',color:'#1a1a18',cursor:'pointer',fontFamily:'inherit',whiteSpace:'nowrap'},
-  statusOpt:{padding:'10px 12px',borderRadius:8,border:'0.5px solid #d0cfc8',cursor:'pointer',display:'flex',alignItems:'center',gap:10,background:'none',textAlign:'left',fontFamily:'inherit',fontSize:13,color:'#1a1a18',width:'100%',marginBottom:6},
-  formRow2:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14},
-  formLabel:{display:'block',fontSize:12,fontWeight:500,color:'#666',marginBottom:5},
-  formInput:{width:'100%',padding:'8px 10px',fontSize:13,borderRadius:8,border:'0.5px solid #d0cfc8',background:'#fff',color:'#1a1a18',fontFamily:'inherit',boxSizing:'border-box'},
-  submitBtn:{width:'100%',padding:10,fontSize:14,borderRadius:8,border:'none',background:'#1a1a18',color:'#fff',cursor:'pointer',fontFamily:'inherit',fontWeight:500,marginTop:4},
-  empty:{padding:'2rem',textAlign:'center',color:'#888',fontSize:13},
-  toast:{position:'fixed',bottom:'1.5rem',left:'50%',transform:'translateX(-50%)',background:'#fff',border:'0.5px solid #d0cfc8',borderRadius:8,padding:'8px 16px',fontSize:13,color:'#1a1a18',zIndex:300,whiteSpace:'nowrap'},
 }
