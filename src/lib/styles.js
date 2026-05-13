@@ -2,12 +2,14 @@
 // Kept as a single object so consumers can call `s.foo`.
 
 export const s = {
-  page:{maxWidth:1200,margin:'0 auto',padding:'1.5rem 1rem',fontFamily:'system-ui, sans-serif',color:'#1a1a18',position:'relative',minHeight:'100vh'},
-  loading:{padding:'3rem',textAlign:'center',color:'#888',fontFamily:'system-ui, sans-serif'},
+  page:{maxWidth:1200,margin:'0 auto',padding:'1.5rem 1rem',fontFamily:"'Avenir Next','Avenir','Century Gothic','Nunito','system-ui',sans-serif",color:'#1a1a18',position:'relative',minHeight:'100vh'},
+  loading:{padding:'3rem',textAlign:'center',color:'#888',fontFamily:"'Avenir Next','Avenir','Century Gothic','Nunito','system-ui',sans-serif"},
   header:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1.5rem',flexWrap:'wrap',gap:10},
+  headerLeft:{display:'flex',alignItems:'center',gap:14},
   headerRight:{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'},
-  brand:{fontSize:11,fontWeight:500,color:'#888',letterSpacing:'0.08em',textTransform:'uppercase'},
-  title:{fontSize:20,fontWeight:500,margin:0},
+  brandLogo:{width:44,height:44,objectFit:'contain',flexShrink:0},
+  brand:{fontSize:11,fontWeight:700,color:'#1B3A78',letterSpacing:'0.12em',textTransform:'uppercase'},
+  title:{fontSize:20,fontWeight:600,margin:0,color:'#1a1a18',letterSpacing:'-0.01em'},
   addBtn:{padding:'7px 14px',fontSize:13,borderRadius:8,border:'0.5px solid #d0cfc8',background:'#fff',color:'#1a1a18',cursor:'pointer',fontFamily:'inherit',whiteSpace:'nowrap'},
   menuItem:{display:'block',width:'100%',padding:'11px 16px',fontSize:14,fontWeight:500,border:'none',background:'none',color:'#1A1B2E',cursor:'pointer',textAlign:'left',fontFamily:'inherit'},
   logoutBtn:{padding:'7px 14px',fontSize:13,borderRadius:8,border:'0.5px solid #d0cfc8',background:'none',color:'#888',cursor:'pointer',fontFamily:'inherit'},
@@ -69,7 +71,7 @@ export const s = {
   formRow2:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14},
   formLabel:{display:'block',fontSize:12,fontWeight:500,color:'#666',marginBottom:5},
   formInput:{width:'100%',padding:'8px 10px',fontSize:13,borderRadius:8,border:'0.5px solid #d0cfc8',background:'#fff',color:'#1a1a18',fontFamily:'inherit',boxSizing:'border-box'},
-  submitBtn:{width:'100%',padding:10,fontSize:14,borderRadius:8,border:'none',background:'#1a1a18',color:'#fff',cursor:'pointer',fontFamily:'inherit',fontWeight:500,marginTop:4},
+  submitBtn:{width:'100%',padding:10,fontSize:14,borderRadius:8,border:'none',background:'linear-gradient(135deg,#1B3A78,#3D9CBA)',color:'#fff',cursor:'pointer',fontFamily:'inherit',fontWeight:600,marginTop:4,boxShadow:'0 2px 6px rgba(27,58,120,0.25)'},
   empty:{padding:'2rem',textAlign:'center',color:'#888',fontSize:13},
   toast:{position:'fixed',bottom:'1.5rem',left:'50%',transform:'translateX(-50%)',background:'#fff',border:'0.5px solid #d0cfc8',borderRadius:8,padding:'8px 16px',fontSize:13,color:'#1a1a18',zIndex:300,whiteSpace:'nowrap'},
 }

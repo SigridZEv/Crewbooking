@@ -380,7 +380,13 @@ export default function BookingPage({ user }) {
   return (
     <div style={s.page}>
       <div style={s.header}>
-        <div><span style={s.brand}>Z Event</span><h1 style={s.title}>Crew booking</h1></div>
+        <div style={s.headerLeft}>
+          <img src="/Z_logo.png" alt="Z Event" style={s.brandLogo} />
+          <div>
+            <span style={s.brand}>Z Event</span>
+            <h1 style={s.title}>Crew booking</h1>
+          </div>
+        </div>
         <div style={s.headerRight}>
           <button style={s.addBtn} onClick={() => setAddOpen(true)}>+ Legg til crew</button>
           <div style={s.tabs}>

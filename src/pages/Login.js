@@ -28,7 +28,7 @@ export default function Login() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: 'linear-gradient(135deg, #2D3A8C 0%, #3B5BDB 35%, #7048E8 65%, #9C36B5 100%)',
+      background: 'linear-gradient(135deg, #1B3A78 0%, #2C5FA8 30%, #3D9CBA 65%, #84C58E 100%)',
       padding: '1rem',
       fontFamily: "'Avenir', 'Avenir Next', 'Century Gothic', 'Nunito', sans-serif",
     }}>
@@ -42,7 +42,7 @@ export default function Login() {
       }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <img src="/Z_logo.png" alt="Z Event" style={{ width: 80, height: 80, objectFit: 'contain', margin: '0 auto 16px', display: 'block' }} />
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#4C6EF5', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 6 }}>Z Event</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#1B3A78', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 6 }}>Z Event</div>
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: '0 0 6px', color: '#1A1B2E', letterSpacing: '-0.02em' }}>Z Crew Portal</h1>
           <p style={{ fontSize: 14, color: '#6B7280', margin: 0 }}>
             {mode === 'login' ? 'Logg inn med din Z Event-konto' : 'Opprett konto'}
@@ -78,9 +78,9 @@ export default function Login() {
               marginTop: 14, width: '100%', padding: '13px',
               fontSize: 15, fontWeight: 700, borderRadius: 9,
               border: 'none',
-              background: loading ? '#9CA3AF' : 'linear-gradient(135deg, #3B5BDB, #7048E8)',
+              background: loading ? '#9CA3AF' : 'linear-gradient(135deg, #1B3A78, #3D9CBA)',
               color: '#fff', cursor: loading ? 'default' : 'pointer',
-              fontFamily: "'Avenir', 'Avenir Next', 'Century Gothic', 'Nunito', sans-serif", boxShadow: '0 3px 10px rgba(76,110,245,0.35)',
+              fontFamily: "'Avenir', 'Avenir Next', 'Century Gothic', 'Nunito', sans-serif", boxShadow: '0 3px 10px rgba(27,58,120,0.35)',
             }}
             type="submit" disabled={loading}
           >
@@ -91,7 +91,7 @@ export default function Login() {
         <p style={{ marginTop: 20, fontSize: 13, color: '#6B7280', textAlign: 'center' }}>
           {mode === 'login' ? 'Ny bruker? ' : 'Har du konto? '}
           <button
-            style={{ background: 'none', border: 'none', color: '#3B5BDB', cursor: 'pointer', fontSize: 13, fontFamily: "'Avenir', 'Avenir Next', 'Century Gothic', 'Nunito', sans-serif", fontWeight: 600 }}
+            style={{ background: 'none', border: 'none', color: '#1B3A78', cursor: 'pointer', fontSize: 13, fontFamily: "'Avenir', 'Avenir Next', 'Century Gothic', 'Nunito', sans-serif", fontWeight: 600 }}
             onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError('') }}
           >
             {mode === 'login' ? 'Opprett konto' : 'Logg inn'}
