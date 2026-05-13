@@ -28,6 +28,13 @@ create table if not exists crew (
 alter table crew add column if not exists birthdate date;
 alter table crew add column if not exists location text default '';
 alter table crew add column if not exists notes text default '';
+alter table crew add column if not exists phone text default '';
+alter table crew add column if not exists email text default '';
+alter table crew add column if not exists employment_form text default '';
+-- category: Erfarne / Uerfarne / Utenfor Oslo / Fast jobb / Ekstern (eller annet)
+alter table crew add column if not exists category text default '';
+-- is_new: flagget for nye crew (uavhengig av kategori)
+alter table crew add column if not exists is_new boolean default false;
 
 -- ------------------------------------------------------------
 -- Skills / Allergier / Sertifikater per crew-person

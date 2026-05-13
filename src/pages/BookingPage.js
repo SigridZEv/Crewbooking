@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import { COLORS, ALLERGIES, STATUS } from '../lib/constants'
+import { COLORS, ALLERGIES, STATUS, CATEGORIES } from '../lib/constants'
 import { getWeekDates, fmtDay, dk } from '../lib/dateUtils'
 import { s } from '../lib/styles'
 
@@ -55,6 +55,8 @@ export default function BookingPage({ user }) {
   const [notesInput, setNotesInput] = useState('')
   const [editingBirthdate, setEditingBirthdate] = useState(false)
   const [birthdateInput, setBirthdateInput] = useState('')
+  const [editingCategory, setEditingCategory] = useState(false)
+  const [categoryInput, setCategoryInput] = useState('')
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
 
@@ -127,6 +129,8 @@ export default function BookingPage({ user }) {
     setCertificateInput(certSk ? certSk.name.replace('Sertifikat: ', '').replace('Sertifikat:', '').trim() : '')
     setEditingName(false)
     setNameInput(c.name)
+    setEditingCategory(false)
+    setCategoryInput(c.category || '')
   }
 
   async function saveRate() {
@@ -216,6 +220,25 @@ export default function BookingPage({ user }) {
     setProfileOpen(prev => ({ ...prev, notes: notesInput }))
     setEditingNotes(false)
     showToast('Kommentar oppdatert')
+  }
+
+  async function saveCategory() {
+    if (!profileOpen) return
+    const newVal = categoryInput || ''
+    await supabase.from('crew').update({ category: newVal }).eq('id', profileOpen.id)
+    setCrew(prev => prev.map(c => c.id === profileOpen.id ? { ...c, category: newVal } : c))
+    setProfileOpen(prev => ({ ...prev, category: newVal }))
+    setEditingCategory(false)
+    showToast('Kategori oppdatert')
+  }
+
+  async function toggleIsNew() {
+    if (!profileOpen) return
+    const newVal = !profileOpen.is_new
+    await supabase.from('crew').update({ is_new: newVal }).eq('id', profileOpen.id)
+    setCrew(prev => prev.map(c => c.id === profileOpen.id ? { ...c, is_new: newVal } : c))
+    setProfileOpen(prev => ({ ...prev, is_new: newVal }))
+    showToast(newVal ? 'Markert som NY' : 'Fjernet NY-merket')
   }
 
   async function addCrewComment() {
@@ -553,6 +576,31 @@ export default function BookingPage({ user }) {
                       <button style={s.editBtn} onClick={() => { setEditingName(true); setNameInput(c.name) }}>Rediger navn</button>
                     </>
                   )}
+                </div>
+
+                {/* Kategori + NY-flagg */}
+                <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:14,flexWrap:'wrap'}}>
+                  {editingCategory ? (
+                    <>
+                      <select style={s.selectInput} value={categoryInput} onChange={e => setCategoryInput(e.target.value)} autoFocus>
+                        <option value="">— Ingen kategori —</option>
+                        {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                      </select>
+                      <button style={s.miniBtn} onClick={saveCategory}>Lagre</button>
+                      <button style={s.clearBtn} onClick={() => setEditingCategory(false)}>Avbryt</button>
+                    </>
+                  ) : (
+                    <>
+                      <span style={c.category ? s.categoryBadge : s.categoryBadgeEmpty}>{c.category || 'Ingen kategori'}</span>
+                      <button style={s.editBtn} onClick={() => setEditingCategory(true)}>Endre</button>
+                    </>
+                  )}
+                  <button
+                    style={c.is_new ? s.newBadgeActive : s.newBadgeInactive}
+                    onClick={toggleIsNew}
+                    title={c.is_new ? 'Klikk for å fjerne NY-merket' : 'Klikk for å markere som ny'}>
+                    {c.is_new ? '★ NY' : '+ NY'}
+                  </button>
                 </div>
 
                 {/* Editable bio */}
