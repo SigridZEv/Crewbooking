@@ -596,21 +596,58 @@ export default function BookingPage({ user }) {
                 </div>
                 <div style={s.msec}>
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
-                    <div style={s.msecHdr}>Erfaringer/referanse</div>
+                    <div style={s.msecHdr}>Interne notater</div>
                     {!editingNotes && <button style={s.editBtn} onClick={() => { setEditingNotes(true); setNotesInput(c.notes || '') }}>Rediger</button>}
                   </div>
                   {editingNotes ? (
                     <div style={{display:'flex',flexDirection:'column',gap:8}}>
-                      <textarea style={{...s.formInput,resize:'vertical'}} rows={3} value={notesInput} onChange={e => setNotesInput(e.target.value)} placeholder='Interne kommentarer...' autoFocus />
+                      <textarea style={{...s.formInput,resize:'vertical'}} rows={3} value={notesInput} onChange={e => setNotesInput(e.target.value)} placeholder='Fritekst — synlig for alle, uten forfatter' autoFocus />
                       <div style={{display:'flex',gap:8}}>
                         <button style={s.miniBtn} onClick={saveNotes}>Lagre</button>
                         <button style={s.clearBtn} onClick={() => setEditingNotes(false)}>Avbryt</button>
                       </div>
                     </div>
                   ) : (
-                    <p style={{fontSize:13,color:c.notes?'#444':'#aaa',lineHeight:1.6,margin:0}}>{c.notes || 'Ingen erfaringer registrert'}</p>
+                    <p style={{fontSize:13,color:c.notes?'#444':'#aaa',lineHeight:1.6,margin:0}}>{c.notes || 'Ingen notater'}</p>
                   )}
                 </div>
+
+                {/* Erfaring / referanser — author-attributed comments */}
+                <div style={s.msec}>
+                  <div style={s.msecHdr}>Erfaring / referanser</div>
+                  {crewComments.length === 0 && (
+                    <p style={{fontSize:13,color:'#aaa',margin:'4px 0 10px'}}>Ingen referanser lagt til enda</p>
+                  )}
+                  {crewComments.map(cm => (
+                    <div key={cm.id} style={s.commentItem}>
+                      <div style={s.commentHead}>
+                        <span style={s.commentAuthor}>{cm.author || 'Ukjent'}</span>
+                        <span style={s.commentDate}>{new Date(cm.created_at).toLocaleDateString('nb-NO',{day:'numeric',month:'short',year:'numeric'})}</span>
+                      </div>
+                      <p style={s.commentBody}>{cm.content}</p>
+                      {cm.author_id === userId && (
+                        <button style={s.commentDelete} onClick={() => deleteCrewComment(cm.id)}>Slett min kommentar</button>
+                      )}
+                    </div>
+                  ))}
+                  <div style={{marginTop:10,display:'flex',flexDirection:'column',gap:8}}>
+                    <textarea
+                      style={{...s.formInput,resize:'vertical'}}
+                      rows={2}
+                      value={newComment}
+                      onChange={e => setNewComment(e.target.value)}
+                      placeholder="Skriv en erfaring eller referanse — navnet ditt og dato lagres automatisk"
+                    />
+                    <div>
+                      <button
+                        style={{...s.miniBtn,opacity:newComment.trim()?1:0.5,cursor:newComment.trim()?'pointer':'not-allowed'}}
+                        disabled={!newComment.trim()}
+                        onClick={addCrewComment}
+                      >Legg til</button>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Sertifikat */}
                 <div style={s.msec}>
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
