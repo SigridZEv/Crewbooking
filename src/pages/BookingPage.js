@@ -384,7 +384,7 @@ export default function BookingPage({ user }) {
           <img src="/Z_logo.png" alt="Z Event" style={s.brandLogo} />
           <div>
             <span style={s.brand}>Z Event</span>
-            <h1 style={s.title}>Crew booking</h1>
+            <h1 style={s.title}>Crew Portal</h1>
           </div>
         </div>
         <div style={s.headerRight}>
