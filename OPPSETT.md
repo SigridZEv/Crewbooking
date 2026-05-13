@@ -1,4 +1,4 @@
-# Crew booking — Oppsettguide for Z Event
+# Crew Portal — Oppsettguide for Z Event
 
 Følg disse stegene for å få nettsiden live. Det tar ca. 20–30 minutter totalt.
 
@@ -8,7 +8,7 @@ Følg disse stegene for å få nettsiden live. Det tar ca. 20–30 minutter tota
 
 1. Gå til **https://supabase.com** og opprett gratis konto
 2. Klikk **"New project"**
-3. Gi prosjektet navnet `crew-booking` og velg et sterkt passord
+3. Gi prosjektet navnet `crew-portal` og velg et sterkt passord
 4. Velg region: **West EU (Ireland)** (nærmest Norge)
 5. Klikk **"Create new project"** og vent ~1 minutt mens det settes opp
 
@@ -36,7 +36,7 @@ Følg disse stegene for å få nettsiden live. Det tar ca. 20–30 minutter tota
 
 ## Steg 4 — Legg inn nøklene i prosjektet
 
-1. Åpne mappen `crew-booking` på din datamaskin
+1. Åpne mappen `crew-portal` på din datamaskin
 2. Kopier filen `.env.example` og gi kopien navnet `.env.local`
 3. Åpne `.env.local` og fyll inn:
 
@@ -50,13 +50,13 @@ REACT_APP_SUPABASE_ANON_KEY=din-anon-key-her
 ## Steg 5 — Publiser på Vercel
 
 1. Gå til **https://vercel.com** og opprett gratis konto (logg inn med GitHub anbefales)
-2. Last opp `crew-booking`-mappen til et nytt GitHub-repository (eller bruk Vercel CLI)
+2. Last opp `crew-portal`-mappen til et nytt GitHub-repository (eller bruk Vercel CLI)
 3. I Vercel: klikk **"Add New Project"** → velg repositoryet ditt
 4. Under **"Environment Variables"**, legg til:
    - `REACT_APP_SUPABASE_URL` = din Supabase URL
    - `REACT_APP_SUPABASE_ANON_KEY` = din anon-nøkkel
 5. Klikk **"Deploy"**
-6. Etter ~2 minutter får du en URL som `crew-booking.vercel.app`
+6. Etter ~2 minutter får du en URL som `crew-portal.vercel.app`
 
 ---
 
