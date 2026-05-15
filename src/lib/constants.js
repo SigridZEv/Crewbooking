@@ -12,14 +12,12 @@ export const COLORS = [
   { bg: '#F5C4B3', text: '#712B13' },
 ]
 
-// Categories for grouping crew (matches the structure of the Excel master list).
+// Categories for grouping crew by experience level.
 // Stored in crew.category as a plain string.
 export const CATEGORIES = [
-  'Erfarne',
-  'Uerfarne',
-  'Utenfor Oslo',
-  'Fast jobb',
-  'Ekstern',
+  'Uerfaren',
+  'Litt erfaren',
+  'Meget erfaren',
 ]
 
 // Allergies the user can select from in a crew profile.
