@@ -57,6 +57,8 @@ export default function BookingPage({ user }) {
   const [birthdateInput, setBirthdateInput] = useState('')
   const [editingCategory, setEditingCategory] = useState(false)
   const [categoryInput, setCategoryInput] = useState('')
+  // pendingIsNew: null = no pending change, true/false = local edit that needs to be saved
+  const [pendingIsNew, setPendingIsNew] = useState(null)
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
 
@@ -131,6 +133,13 @@ export default function BookingPage({ user }) {
     setNameInput(c.name)
     setEditingCategory(false)
     setCategoryInput(c.category || '')
+    setPendingIsNew(null)
+    setEditingLocation(false)
+    setLocationInput(c.location || '')
+    setEditingNotes(false)
+    setNotesInput(c.notes || '')
+    setEditingBirthdate(false)
+    setBirthdateInput(c.birthdate || '')
   }
 
   async function saveRate() {
@@ -232,12 +241,140 @@ export default function BookingPage({ user }) {
     showToast('Kategori oppdatert')
   }
 
-  async function toggleIsNew() {
+  // Compare a current pending value with the persisted one.
+  function isDirty() {
+    if (!profileOpen) return false
+    const c = profileOpen
+    if (nameInput.trim() !== c.name) return true
+    if (bioInput !== (c.bio || '')) return true
+    const parsedRate = parseInt(rateInput, 10)
+    if (!Number.isNaN(parsedRate) && parsedRate !== c.rate) return true
+    if (categoryInput !== (c.category || '')) return true
+    if (pendingIsNew !== null && pendingIsNew !== !!c.is_new) return true
+    if (notesInput !== (c.notes || '')) return true
+    if (locationInput !== (c.location || '')) return true
+    if ((birthdateInput || '') !== (c.birthdate || '')) return true
+    const existingAllergy = (c.skills || []).find(sk => sk.name.startsWith('Allergi:'))
+    const currAllergy = existingAllergy ? existingAllergy.name.replace(/^Allergi:\s*/, '').trim() : ''
+    if ((allergyInput || '').trim() !== currAllergy) return true
+    const existingCert = (c.skills || []).find(sk => sk.name.startsWith('Sertifikat:'))
+    const currCert = existingCert ? existingCert.name.replace(/^Sertifikat:\s*/, '').trim() : ''
+    if ((certificateInput || '').trim() !== currCert) return true
+    return false
+  }
+
+  // Commit all pending field edits to the database in one shot.
+  async function saveAll() {
     if (!profileOpen) return
-    const newVal = !profileOpen.is_new
+    const c = profileOpen
+
+    // Validation: name cannot be blank
+    const trimmedName = nameInput.trim()
+    if (!trimmedName) {
+      showToast('Navn kan ikke være tomt')
+      return
+    }
+    // Validation: rate must be a positive number if changed
+    const parsedRate = parseInt(rateInput, 10)
+    if (Number.isNaN(parsedRate) || parsedRate < 0) {
+      showToast('Timepris må være et tall')
+      return
+    }
+
+    setSaving(true)
+
+    // Build the crew-table update payload (only changed columns)
+    const updates = {}
+    if (trimmedName !== c.name) {
+      updates.name = trimmedName
+      updates.initials = trimmedName.split(/\s+/).map(p => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()
+    }
+    if (bioInput !== (c.bio || '')) updates.bio = bioInput
+    if (parsedRate !== c.rate) updates.rate = parsedRate
+    if (categoryInput !== (c.category || '')) updates.category = categoryInput
+    if (pendingIsNew !== null && pendingIsNew !== !!c.is_new) updates.is_new = pendingIsNew
+    if (notesInput !== (c.notes || '')) updates.notes = notesInput
+    if (locationInput !== (c.location || '')) updates.location = locationInput
+    if ((birthdateInput || '') !== (c.birthdate || '')) updates.birthdate = birthdateInput || null
+
+    if (Object.keys(updates).length > 0) {
+      await supabase.from('crew').update(updates).eq('id', c.id)
+    }
+
+    // Allergi (skills row med 'Allergi:'-prefix)
+    const existingAllergy = (c.skills || []).find(sk => sk.name.startsWith('Allergi:'))
+    const allergyText = (allergyInput || '').trim()
+    if (existingAllergy && allergyText && allergyText !== existingAllergy.name.replace(/^Allergi:\s*/, '').trim()) {
+      await supabase.from('skills').update({ name: 'Allergi: ' + allergyText }).eq('id', existingAllergy.id)
+    } else if (existingAllergy && !allergyText) {
+      await supabase.from('skills').delete().eq('id', existingAllergy.id)
+    } else if (!existingAllergy && allergyText) {
+      await supabase.from('skills').insert({ crew_id: c.id, name: 'Allergi: ' + allergyText, comment: '' })
+    }
+
+    // Sertifikat (skills row med 'Sertifikat:'-prefix)
+    const existingCert = (c.skills || []).find(sk => sk.name.startsWith('Sertifikat:'))
+    const certText = (certificateInput || '').trim()
+    if (existingCert && certText && certText !== existingCert.name.replace(/^Sertifikat:\s*/, '').trim()) {
+      await supabase.from('skills').update({ name: 'Sertifikat: ' + certText }).eq('id', existingCert.id)
+    } else if (existingCert && !certText) {
+      await supabase.from('skills').delete().eq('id', existingCert.id)
+    } else if (!existingCert && certText) {
+      await supabase.from('skills').insert({ crew_id: c.id, name: 'Sertifikat: ' + certText, comment: '' })
+    }
+
+    // Reload crew so skills + denormalized data are in sync
+    await loadCrew()
+    setProfileOpen(prev => prev ? { ...prev, ...updates } : prev)
+    setPendingIsNew(null)
+    setSaving(false)
+    showToast('Endringer lagret')
+  }
+
+  // Discard all pending field edits and reset inputs to the persisted values.
+  function cancelAll() {
+    if (!profileOpen) return
+    const c = profileOpen
+    setBioInput(c.bio || '')
+    setRateInput(String(c.rate))
+    setCategoryInput(c.category || '')
+    setPendingIsNew(null)
+    setNotesInput(c.notes || '')
+    setLocationInput(c.location || '')
+    setBirthdateInput(c.birthdate || '')
+    setNameInput(c.name)
+    const allergySk = (c.skills || []).find(sk => sk.name.startsWith('Allergi:'))
+    setAllergyInput(allergySk ? allergySk.name.replace(/^Allergi:\s*/, '').trim() : '')
+    const certSk = (c.skills || []).find(sk => sk.name.startsWith('Sertifikat:'))
+    setCertificateInput(certSk ? certSk.name.replace(/^Sertifikat:\s*/, '').trim() : '')
+    setEditingBio(false)
+    setEditingRate(false)
+    setEditingCategory(false)
+    setEditingNotes(false)
+    setEditingLocation(false)
+    setEditingBirthdate(false)
+    setEditingName(false)
+    setEditingAllergy(false)
+    setEditingCertificate(false)
+    showToast('Endringer forkastet')
+  }
+
+  // Toggle the local pending value without saving. If the new value matches
+  // the persisted value, clear the pending state (user toggled back).
+  function toggleNewPending() {
+    if (!profileOpen) return
+    const current = pendingIsNew !== null ? pendingIsNew : !!profileOpen.is_new
+    const next = !current
+    setPendingIsNew(next === !!profileOpen.is_new ? null : next)
+  }
+
+  async function saveNewFlag() {
+    if (!profileOpen || pendingIsNew === null) return
+    const newVal = pendingIsNew
     await supabase.from('crew').update({ is_new: newVal }).eq('id', profileOpen.id)
     setCrew(prev => prev.map(c => c.id === profileOpen.id ? { ...c, is_new: newVal } : c))
     setProfileOpen(prev => ({ ...prev, is_new: newVal }))
+    setPendingIsNew(null)
     showToast(newVal ? 'Markert som NY' : 'Fjernet NY-merket')
   }
 
@@ -566,14 +703,14 @@ export default function BookingPage({ user }) {
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
                   {editingName ? (
                     <div style={{display:'flex',gap:8,flex:1}}>
-                      <input style={{...s.formInput,flex:1,fontSize:16}} value={nameInput} onChange={e => setNameInput(e.target.value)} onKeyDown={e => { if(e.key==='Enter') saveName() }} autoFocus />
-                      <button style={s.miniBtn} onClick={saveName}>Lagre</button>
-                      <button style={s.clearBtn} onClick={() => setEditingName(false)}>Avbryt</button>
+                      <input style={{...s.formInput,flex:1,fontSize:16}} value={nameInput} onChange={e => setNameInput(e.target.value)} onKeyDown={e => { if(e.key==='Enter') setEditingName(false) }} autoFocus />
+                      <button style={s.miniBtn} onClick={() => setEditingName(false)}>Ferdig</button>
+                      <button style={s.clearBtn} onClick={() => { setNameInput(c.name); setEditingName(false) }}>Avbryt</button>
                     </div>
                   ) : (
                     <>
-                      <div style={{fontSize:18,fontWeight:500,color:'#1a1a18',flex:1}}>{c.name}</div>
-                      <button style={s.editBtn} onClick={() => { setEditingName(true); setNameInput(c.name) }}>Rediger navn</button>
+                      <div style={{fontSize:18,fontWeight:500,color:'#1a1a18',flex:1}}>{nameInput}</div>
+                      <button style={s.editBtn} onClick={() => setEditingName(true)}>Rediger navn</button>
                     </>
                   )}
                 </div>
@@ -586,39 +723,42 @@ export default function BookingPage({ user }) {
                         <option value="">— Ingen kategori —</option>
                         {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                       </select>
-                      <button style={s.miniBtn} onClick={saveCategory}>Lagre</button>
-                      <button style={s.clearBtn} onClick={() => setEditingCategory(false)}>Avbryt</button>
+                      <button style={s.miniBtn} onClick={() => setEditingCategory(false)}>Ferdig</button>
+                      <button style={s.clearBtn} onClick={() => { setCategoryInput(c.category || ''); setEditingCategory(false) }}>Avbryt</button>
                     </>
                   ) : (
                     <>
-                      <span style={c.category ? s.categoryBadge : s.categoryBadgeEmpty}>{c.category || 'Ingen kategori'}</span>
+                      <span style={categoryInput ? s.categoryBadge : s.categoryBadgeEmpty}>{categoryInput || 'Ingen kategori'}</span>
                       <button style={s.editBtn} onClick={() => setEditingCategory(true)}>Endre</button>
                     </>
                   )}
-                  <button
-                    style={c.is_new ? s.newBadgeActive : s.newBadgeInactive}
-                    onClick={toggleIsNew}
-                    title={c.is_new ? 'Klikk for å fjerne NY-merket' : 'Klikk for å markere som ny'}>
-                    {c.is_new ? '★ NY' : '+ NY'}
-                  </button>
+                  {(() => {
+                    const displayedIsNew = pendingIsNew !== null ? pendingIsNew : !!c.is_new
+                    return <button
+                      style={displayedIsNew ? s.newBadgeActive : s.newBadgeInactive}
+                      onClick={toggleNewPending}
+                      title={displayedIsNew ? 'Klikk for å fjerne NY-merket' : 'Klikk for å markere som ny'}>
+                      {displayedIsNew ? '★ NY' : '+ NY'}
+                    </button>
+                  })()}
                 </div>
 
                 {/* Editable bio */}
                 <div style={s.msec}>
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
                     <div style={s.msecHdr}>Om</div>
-                    {!editingBio && <button style={s.editBtn} onClick={() => { setEditingBio(true); setBioInput(c.bio || '') }}>Rediger</button>}
+                    {!editingBio && <button style={s.editBtn} onClick={() => setEditingBio(true)}>Rediger</button>}
                   </div>
                   {editingBio ? (
                     <div style={{display:'flex',flexDirection:'column',gap:8}}>
                       <textarea style={{...s.formInput,resize:'vertical'}} rows={3} value={bioInput} onChange={e => setBioInput(e.target.value)} autoFocus />
                       <div style={{display:'flex',gap:8}}>
-                        <button style={s.miniBtn} onClick={saveBio}>Lagre</button>
-                        <button style={s.clearBtn} onClick={() => setEditingBio(false)}>Avbryt</button>
+                        <button style={s.miniBtn} onClick={() => setEditingBio(false)}>Ferdig</button>
+                        <button style={s.clearBtn} onClick={() => { setBioInput(c.bio || ''); setEditingBio(false) }}>Avbryt</button>
                       </div>
                     </div>
                   ) : (
-                    <p style={{fontSize:13,color:'#666',lineHeight:1.6,margin:0}}>{c.bio || '-'}</p>
+                    <p style={{fontSize:13,color:'#666',lineHeight:1.6,margin:0}}>{bioInput || '-'}</p>
                   )}
                 </div>
 
@@ -645,18 +785,18 @@ export default function BookingPage({ user }) {
                 <div style={s.msec}>
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
                     <div style={s.msecHdr}>Interne notater</div>
-                    {!editingNotes && <button style={s.editBtn} onClick={() => { setEditingNotes(true); setNotesInput(c.notes || '') }}>Rediger</button>}
+                    {!editingNotes && <button style={s.editBtn} onClick={() => setEditingNotes(true)}>Rediger</button>}
                   </div>
                   {editingNotes ? (
                     <div style={{display:'flex',flexDirection:'column',gap:8}}>
                       <textarea style={{...s.formInput,resize:'vertical'}} rows={3} value={notesInput} onChange={e => setNotesInput(e.target.value)} placeholder='Fritekst — synlig for alle, uten forfatter' autoFocus />
                       <div style={{display:'flex',gap:8}}>
-                        <button style={s.miniBtn} onClick={saveNotes}>Lagre</button>
-                        <button style={s.clearBtn} onClick={() => setEditingNotes(false)}>Avbryt</button>
+                        <button style={s.miniBtn} onClick={() => setEditingNotes(false)}>Ferdig</button>
+                        <button style={s.clearBtn} onClick={() => { setNotesInput(c.notes || ''); setEditingNotes(false) }}>Avbryt</button>
                       </div>
                     </div>
                   ) : (
-                    <p style={{fontSize:13,color:c.notes?'#444':'#aaa',lineHeight:1.6,margin:0}}>{c.notes || 'Ingen notater'}</p>
+                    <p style={{fontSize:13,color:notesInput?'#444':'#aaa',lineHeight:1.6,margin:0}}>{notesInput || 'Ingen notater'}</p>
                   )}
                 </div>
 
@@ -704,9 +844,9 @@ export default function BookingPage({ user }) {
                   </div>
                   {editingCertificate ? (
                     <div style={{display:'flex',gap:8}}>
-                      <input style={{...s.formInput,flex:1}} value={certificateInput} onChange={e => setCertificateInput(e.target.value)} placeholder="f.eks. JA, Klasse B, Truck..." autoFocus onKeyDown={e => { if(e.key==='Enter') saveCertificate() }} />
-                      <button style={s.miniBtn} onClick={saveCertificate}>Lagre</button>
-                      <button style={s.clearBtn} onClick={() => setEditingCertificate(false)}>Avbryt</button>
+                      <input style={{...s.formInput,flex:1}} value={certificateInput} onChange={e => setCertificateInput(e.target.value)} placeholder="f.eks. JA, Klasse B, Truck..." autoFocus onKeyDown={e => { if(e.key==='Enter') setEditingCertificate(false) }} />
+                      <button style={s.miniBtn} onClick={() => setEditingCertificate(false)}>Ferdig</button>
+                      <button style={s.clearBtn} onClick={() => { const certSk = (c.skills || []).find(sk => sk.name.startsWith('Sertifikat:')); setCertificateInput(certSk ? certSk.name.replace(/^Sertifikat:\s*/, '').trim() : ''); setEditingCertificate(false) }}>Avbryt</button>
                     </div>
                   ) : (
                     <div style={{fontSize:13,color: certificateInput ? '#1a1a18' : '#555'}}>{certificateInput || 'Ikke registrert'}</div>
@@ -717,17 +857,17 @@ export default function BookingPage({ user }) {
                 <div style={s.msec}>
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
                     <div style={s.msecHdr}>Timepris</div>
-                    {!editingRate && <button style={s.editBtn} onClick={() => { setEditingRate(true); setRateInput(String(c.rate)) }}>Rediger</button>}
+                    {!editingRate && <button style={s.editBtn} onClick={() => setEditingRate(true)}>Rediger</button>}
                   </div>
                   {editingRate ? (
                     <div style={{display:'flex',gap:8,alignItems:'center'}}>
-                      <input style={{...s.formInput,width:120}} type="number" value={rateInput} onChange={e => setRateInput(e.target.value)} onKeyDown={e => { if(e.key==='Enter') saveRate() }} autoFocus />
+                      <input style={{...s.formInput,width:120}} type="number" value={rateInput} onChange={e => setRateInput(e.target.value)} onKeyDown={e => { if(e.key==='Enter') setEditingRate(false) }} autoFocus />
                       <span style={{fontSize:13,color:'#888'}}>kr/t</span>
-                      <button style={s.miniBtn} onClick={saveRate}>Lagre</button>
-                      <button style={s.clearBtn} onClick={() => setEditingRate(false)}>Avbryt</button>
+                      <button style={s.miniBtn} onClick={() => setEditingRate(false)}>Ferdig</button>
+                      <button style={s.clearBtn} onClick={() => { setRateInput(String(c.rate)); setEditingRate(false) }}>Avbryt</button>
                     </div>
                   ) : (
-                    <div style={{fontSize:24,fontWeight:500,color:'#1a1a18'}}>{c.rate} kr<span style={{fontSize:13,fontWeight:400,color:'#888'}}>/t</span></div>
+                    <div style={{fontSize:24,fontWeight:500,color:'#1a1a18'}}>{rateInput} kr<span style={{fontSize:13,fontWeight:400,color:'#888'}}>/t</span></div>
                   )}
                 </div>
 
@@ -740,12 +880,12 @@ export default function BookingPage({ user }) {
                     {editingBirthdate ? (
                       <div style={{display:'flex',gap:6}}>
                         <input style={{...s.formInput,flex:1}} type='date' value={birthdateInput} onChange={e => setBirthdateInput(e.target.value)} autoFocus />
-                        <button style={s.miniBtn} onClick={saveBirthdate}>Lagre</button>
-                        <button style={s.clearBtn} onClick={() => setEditingBirthdate(false)}>X</button>
+                        <button style={s.miniBtn} onClick={() => setEditingBirthdate(false)}>Ferdig</button>
+                        <button style={s.clearBtn} onClick={() => { setBirthdateInput(c.birthdate || ''); setEditingBirthdate(false) }}>X</button>
                       </div>
                     ) : (
-                      <div style={{fontSize:13,color:c.birthdate?'#1a1a18':'#aaa'}}>
-                        {c.birthdate ? new Date(c.birthdate).toLocaleDateString('nb-NO') : 'Ikke registrert'}
+                      <div style={{fontSize:13,color:birthdateInput?'#1a1a18':'#aaa'}}>
+                        {birthdateInput ? new Date(birthdateInput).toLocaleDateString('nb-NO') : 'Ikke registrert'}
                       </div>
                     )}
                   </div>
@@ -756,12 +896,12 @@ export default function BookingPage({ user }) {
                     </div>
                     {editingLocation ? (
                       <div style={{display:'flex',gap:6}}>
-                        <input style={{...s.formInput,flex:1}} value={locationInput} onChange={e => setLocationInput(e.target.value)} placeholder='f.eks. Oslo' autoFocus onKeyDown={e => { if(e.key==='Enter') saveLocation() }} />
-                        <button style={s.miniBtn} onClick={saveLocation}>Lagre</button>
-                        <button style={s.clearBtn} onClick={() => setEditingLocation(false)}>X</button>
+                        <input style={{...s.formInput,flex:1}} value={locationInput} onChange={e => setLocationInput(e.target.value)} placeholder='f.eks. Oslo' autoFocus onKeyDown={e => { if(e.key==='Enter') setEditingLocation(false) }} />
+                        <button style={s.miniBtn} onClick={() => setEditingLocation(false)}>Ferdig</button>
+                        <button style={s.clearBtn} onClick={() => { setLocationInput(c.location || ''); setEditingLocation(false) }}>X</button>
                       </div>
                     ) : (
-                      <div style={{fontSize:13,color:c.location?'#1a1a18':'#aaa'}}>{c.location || 'Ikke registrert'}</div>
+                      <div style={{fontSize:13,color:locationInput?'#1a1a18':'#aaa'}}>{locationInput || 'Ikke registrert'}</div>
                     )}
                   </div>
                 </div>
@@ -781,10 +921,10 @@ export default function BookingPage({ user }) {
                           </button>
                         ))}
                       </div>
-                      <input style={{...s.formInput}} value={allergyInput} onChange={e => setAllergyInput(e.target.value)} placeholder="Eller skriv fritt..." autoFocus onKeyDown={e => { if(e.key==='Enter') saveAllergy() }} />
+                      <input style={{...s.formInput}} value={allergyInput} onChange={e => setAllergyInput(e.target.value)} placeholder="Eller skriv fritt..." autoFocus onKeyDown={e => { if(e.key==='Enter') setEditingAllergy(false) }} />
                       <div style={{display:'flex',gap:8}}>
-                        <button style={s.miniBtn} onClick={saveAllergy}>Lagre</button>
-                        <button style={s.clearBtn} onClick={() => setEditingAllergy(false)}>Avbryt</button>
+                        <button style={s.miniBtn} onClick={() => setEditingAllergy(false)}>Ferdig</button>
+                        <button style={s.clearBtn} onClick={() => { const allergySk = (c.skills || []).find(sk => sk.name.startsWith('Allergi:')); setAllergyInput(allergySk ? allergySk.name.replace(/^Allergi:\s*/, '').trim() : ''); setEditingAllergy(false) }}>Avbryt</button>
                       </div>
                     </div>
                   ) : (
@@ -805,6 +945,17 @@ export default function BookingPage({ user }) {
                     {x.b.booked_by && <span style={s.bookingBy}>av {x.b.booked_by}</span>}
                   </div>)}
                 </div>}
+
+                {/* Sticky save bar — only visible when there are unsaved changes */}
+                {isDirty() && (
+                  <div style={s.saveBar}>
+                    <div style={s.saveBarText}>Du har ulagrede endringer</div>
+                    <div style={{display:'flex',gap:8}}>
+                      <button style={s.saveBarCancel} onClick={cancelAll} disabled={saving}>Avbryt</button>
+                      <button style={s.saveBarSave} onClick={saveAll} disabled={saving}>{saving ? 'Lagrer…' : 'Lagre alle endringer'}</button>
+                    </div>
+                  </div>
+                )}
 
               </>
             })()}
