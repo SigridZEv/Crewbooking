@@ -57,6 +57,8 @@ export default function BookingPage({ user }) {
   const [birthdateInput, setBirthdateInput] = useState('')
   const [editingCategory, setEditingCategory] = useState(false)
   const [categoryInput, setCategoryInput] = useState('')
+  // pendingIsNew: null = no pending change, true/false = local edit that needs to be saved
+  const [pendingIsNew, setPendingIsNew] = useState(null)
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
 
@@ -131,6 +133,7 @@ export default function BookingPage({ user }) {
     setNameInput(c.name)
     setEditingCategory(false)
     setCategoryInput(c.category || '')
+    setPendingIsNew(null)
   }
 
   async function saveRate() {
@@ -232,12 +235,22 @@ export default function BookingPage({ user }) {
     showToast('Kategori oppdatert')
   }
 
-  async function toggleIsNew() {
+  // Toggle the local pending value without saving. If the new value matches
+  // the persisted value, clear the pending state (user toggled back).
+  function toggleNewPending() {
     if (!profileOpen) return
-    const newVal = !profileOpen.is_new
+    const current = pendingIsNew !== null ? pendingIsNew : !!profileOpen.is_new
+    const next = !current
+    setPendingIsNew(next === !!profileOpen.is_new ? null : next)
+  }
+
+  async function saveNewFlag() {
+    if (!profileOpen || pendingIsNew === null) return
+    const newVal = pendingIsNew
     await supabase.from('crew').update({ is_new: newVal }).eq('id', profileOpen.id)
     setCrew(prev => prev.map(c => c.id === profileOpen.id ? { ...c, is_new: newVal } : c))
     setProfileOpen(prev => ({ ...prev, is_new: newVal }))
+    setPendingIsNew(null)
     showToast(newVal ? 'Markert som NY' : 'Fjernet NY-merket')
   }
 
@@ -595,12 +608,24 @@ export default function BookingPage({ user }) {
                       <button style={s.editBtn} onClick={() => setEditingCategory(true)}>Endre</button>
                     </>
                   )}
-                  <button
-                    style={c.is_new ? s.newBadgeActive : s.newBadgeInactive}
-                    onClick={toggleIsNew}
-                    title={c.is_new ? 'Klikk for å fjerne NY-merket' : 'Klikk for å markere som ny'}>
-                    {c.is_new ? '★ NY' : '+ NY'}
-                  </button>
+                  {(() => {
+                    const displayedIsNew = pendingIsNew !== null ? pendingIsNew : !!c.is_new
+                    const hasPending = pendingIsNew !== null
+                    return <>
+                      <button
+                        style={displayedIsNew ? s.newBadgeActive : s.newBadgeInactive}
+                        onClick={toggleNewPending}
+                        title={displayedIsNew ? 'Klikk for å fjerne NY-merket' : 'Klikk for å markere som ny'}>
+                        {displayedIsNew ? '★ NY' : '+ NY'}
+                      </button>
+                      {hasPending && (
+                        <>
+                          <button style={s.miniBtn} onClick={saveNewFlag}>Lagre</button>
+                          <button style={s.clearBtn} onClick={() => setPendingIsNew(null)}>Avbryt</button>
+                        </>
+                      )}
+                    </>
+                  })()}
                 </div>
 
                 {/* Editable bio */}
