@@ -52,6 +52,8 @@ export const s = {
   newBadgeActive:{display:'inline-flex',alignItems:'center',padding:'4px 10px',borderRadius:14,background:'#1B3A78',color:'#fff',fontSize:11,fontWeight:700,letterSpacing:'0.05em',border:'none',cursor:'pointer',fontFamily:'inherit'},
   newBadgeInactive:{display:'inline-flex',alignItems:'center',padding:'4px 10px',borderRadius:14,background:'#fff',color:'#aaa',fontSize:11,fontWeight:500,letterSpacing:'0.05em',border:'1px dashed #d0cfc8',cursor:'pointer',fontFamily:'inherit'},
   selectInput:{padding:'6px 10px',fontSize:13,borderRadius:8,border:'0.5px solid #d0cfc8',background:'#fff',color:'#1a1a18',fontFamily:'inherit'},
+  skillChip:{display:'inline-flex',alignItems:'center',gap:4,padding:'4px 4px 4px 12px',borderRadius:14,background:'#EDF1F8',color:'#1B3A78',fontSize:12,fontWeight:600,letterSpacing:'0.01em'},
+  skillChipDelete:{background:'transparent',color:'#1B3A78',border:'none',cursor:'pointer',padding:'0 6px',fontFamily:'inherit',fontSize:14,opacity:0.55,lineHeight:1,fontWeight:700},
   saveBar:{position:'sticky',bottom:'-1.5rem',marginLeft:'-1.5rem',marginRight:'-1.5rem',marginTop:'1rem',background:'#fff',borderTop:'1px solid #e0dfd8',padding:'14px 1.5rem',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,boxShadow:'0 -4px 12px rgba(0,0,0,0.06)',flexWrap:'wrap'},
   saveBarText:{fontSize:12,fontWeight:600,color:'#1B3A78',letterSpacing:'0.02em'},
   saveBarSave:{padding:'10px 18px',fontSize:13,borderRadius:8,border:'none',background:'linear-gradient(135deg,#1B3A78,#3D9CBA)',color:'#fff',cursor:'pointer',fontFamily:'inherit',fontWeight:700,boxShadow:'0 2px 6px rgba(27,58,120,0.25)'},
