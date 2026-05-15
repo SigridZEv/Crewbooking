@@ -862,23 +862,22 @@ export default function BookingPage({ user }) {
                   )}
                 </div>
 
-                {/* Skills */}
+                {/* Skills — chips */}
                 <div style={s.msec}>
                   <div style={s.msecHdr}>Ferdigheter</div>
-                  {skills.map(sk => <div key={sk.id} style={s.skillRow}>
-                    <span style={s.skillName}>{sk.name}</span>
-                    {editingComment && editingComment.skillId === sk.id
-                      ? <input autoFocus style={s.commentInput} value={editingComment.value}
-                          onChange={e => setEditingComment({...editingComment, value: e.target.value})}
-                          onBlur={() => saveComment(sk.id, editingComment.value)}
-                          onKeyDown={e => { if(e.key==='Enter') saveComment(sk.id, editingComment.value) }} />
-                      : <span style={{...s.comment,...(sk.comment?{}:s.commentEmpty)}} onClick={() => setEditingComment({skillId:sk.id,value:sk.comment||''})}>
-                          {sk.comment || 'Legg til kommentar...'}
-                        </span>}
-                    <button style={s.delSkill} onClick={() => deleteSkill(sk.id)}>X</button>
-                  </div>)}
-                  <div style={{display:'flex',gap:6,marginTop:10}}>
-                    <input style={{...s.commentInput,flex:1}} value={newSkillInput} onChange={e => setNewSkillInput(e.target.value)} placeholder="Legg til ny ferdighet..." onKeyDown={e => { if(e.key==='Enter') addSkill() }} />
+                  <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:10}}>
+                    {skills.length === 0 && (
+                      <span style={{fontSize:13,color:'#aaa',fontStyle:'italic'}}>Ingen ferdigheter lagt til</span>
+                    )}
+                    {skills.map(sk => (
+                      <span key={sk.id} style={s.skillChip}>
+                        {sk.name}
+                        <button style={s.skillChipDelete} onClick={() => deleteSkill(sk.id)} title="Fjern ferdighet">×</button>
+                      </span>
+                    ))}
+                  </div>
+                  <div style={{display:'flex',gap:6}}>
+                    <input style={{...s.formInput,flex:1}} value={newSkillInput} onChange={e => setNewSkillInput(e.target.value)} placeholder="Legg til ny ferdighet..." onKeyDown={e => { if(e.key==='Enter') addSkill() }} />
                     <button style={s.miniBtn} onClick={addSkill}>Legg til</button>
                   </div>
                 </div>
