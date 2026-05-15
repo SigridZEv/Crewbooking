@@ -59,6 +59,11 @@ export default function BookingPage({ user }) {
   const [categoryInput, setCategoryInput] = useState('')
   // pendingIsNew: null = no pending change, true/false = local edit that needs to be saved
   const [pendingIsNew, setPendingIsNew] = useState(null)
+  // Local buffers — all changes to skills/comments live here until saveAll commits them.
+  // Skills excludes allergi/sertifikat (those are handled via allergyInput/certificateInput).
+  // New items get an id starting with '_tmp_' so we can tell pending-adds from existing ones.
+  const [localSkills, setLocalSkills] = useState([])
+  const [localComments, setLocalComments] = useState([])
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
 
@@ -124,10 +129,18 @@ export default function BookingPage({ user }) {
     setEditingCertificate(false)
     const certSk = (c.skills || []).find(s => s.name.startsWith('Sertifikat:'))
     setCrewComments([])
+    setLocalComments([])
     setNewComment('')
     supabase.from('crew_comments').select('*').eq('crew_id', c.id).order('created_at', { ascending: true }).then(({ data }) => {
-      if (data) setCrewComments(data)
+      if (data) {
+        setCrewComments(data)
+        setLocalComments(data)
+      }
     })
+    // Initialize local skills buffer (excluding allergi/sertifikat which are handled separately)
+    setLocalSkills((c.skills || []).filter(sk => !sk.name.startsWith('Allergi:') && !sk.name.startsWith('Sertifikat:')))
+    setNewSkillInput('')
+    setEditingComment(null)
     setCertificateInput(certSk ? certSk.name.replace('Sertifikat: ', '').replace('Sertifikat:', '').trim() : '')
     setEditingName(false)
     setNameInput(c.name)
@@ -241,7 +254,7 @@ export default function BookingPage({ user }) {
     showToast('Kategori oppdatert')
   }
 
-  // Compare a current pending value with the persisted one.
+  // Compare current pending values with the persisted ones.
   function isDirty() {
     if (!profileOpen) return false
     const c = profileOpen
@@ -260,6 +273,26 @@ export default function BookingPage({ user }) {
     const existingCert = (c.skills || []).find(sk => sk.name.startsWith('Sertifikat:'))
     const currCert = existingCert ? existingCert.name.replace(/^Sertifikat:\s*/, '').trim() : ''
     if ((certificateInput || '').trim() !== currCert) return true
+    // Skills (non-allergi/sertifikat) changes
+    const originalSkills = (c.skills || []).filter(sk => !sk.name.startsWith('Allergi:') && !sk.name.startsWith('Sertifikat:'))
+    if (localSkills.length !== originalSkills.length) return true
+    const origById = Object.fromEntries(originalSkills.map(s => [s.id, s]))
+    for (const ls of localSkills) {
+      if (String(ls.id).startsWith('_tmp_')) return true
+      const orig = origById[ls.id]
+      if (!orig || (ls.comment || '') !== (orig.comment || '')) return true
+    }
+    // Comments changes
+    if (localComments.length !== crewComments.length) return true
+    const crewCommentIds = new Set(crewComments.map(cc => cc.id))
+    const localIds = new Set(localComments.map(lc => lc.id))
+    for (const lc of localComments) {
+      if (String(lc.id).startsWith('_tmp_')) return true
+      if (!crewCommentIds.has(lc.id)) return true
+    }
+    for (const cc of crewComments) {
+      if (!localIds.has(cc.id)) return true
+    }
     return false
   }
 
@@ -323,9 +356,64 @@ export default function BookingPage({ user }) {
       await supabase.from('skills').insert({ crew_id: c.id, name: 'Sertifikat: ' + certText, comment: '' })
     }
 
-    // Reload crew so skills + denormalized data are in sync
+    // Skills (non-allergi/sertifikat)
+    const originalSkills = (c.skills || []).filter(sk => !sk.name.startsWith('Allergi:') && !sk.name.startsWith('Sertifikat:'))
+    const origSkillsById = Object.fromEntries(originalSkills.map(s => [s.id, s]))
+    const localSkillIds = new Set(localSkills.map(s => s.id))
+    // Inserts
+    const toInsertSkills = localSkills
+      .filter(ls => String(ls.id).startsWith('_tmp_'))
+      .map(ls => ({ crew_id: c.id, name: ls.name, comment: ls.comment || '' }))
+    if (toInsertSkills.length > 0) {
+      await supabase.from('skills').insert(toInsertSkills)
+    }
+    // Deletes
+    const toDeleteSkills = originalSkills.filter(os => !localSkillIds.has(os.id)).map(os => os.id)
+    if (toDeleteSkills.length > 0) {
+      await supabase.from('skills').delete().in('id', toDeleteSkills)
+    }
+    // Comment updates on existing skills
+    for (const ls of localSkills) {
+      if (String(ls.id).startsWith('_tmp_')) continue
+      const orig = origSkillsById[ls.id]
+      if (orig && (ls.comment || '') !== (orig.comment || '')) {
+        await supabase.from('skills').update({ comment: ls.comment || '' }).eq('id', ls.id)
+      }
+    }
+
+    // Comments (erfaring/referanser)
+    const crewCommentIds = new Set(crewComments.map(cc => cc.id))
+    const localCommentIds = new Set(localComments.map(lc => lc.id))
+    const toInsertComments = localComments
+      .filter(lc => String(lc.id).startsWith('_tmp_'))
+      .map(lc => ({
+        crew_id: c.id,
+        author: lc.author,
+        author_id: lc.author_id,
+        content: lc.content,
+      }))
+    if (toInsertComments.length > 0) {
+      await supabase.from('crew_comments').insert(toInsertComments)
+    }
+    const toDeleteComments = crewComments.filter(cc => !localCommentIds.has(cc.id)).map(cc => cc.id)
+    if (toDeleteComments.length > 0) {
+      await supabase.from('crew_comments').delete().in('id', toDeleteComments)
+    }
+
+    // Reload crew list so the calendar view stays in sync
     await loadCrew()
-    setProfileOpen(prev => prev ? { ...prev, ...updates } : prev)
+    // Refetch THIS crew with its skills so localSkills/profileOpen have real DB ids (no more _tmp_)
+    const { data: freshCrew } = await supabase.from('crew').select('*, skills(*)').eq('id', c.id).single()
+    if (freshCrew) {
+      setProfileOpen(freshCrew)
+      setLocalSkills((freshCrew.skills || []).filter(sk => !sk.name.startsWith('Allergi:') && !sk.name.startsWith('Sertifikat:')))
+    }
+    // Reload comments so we have proper DB ids/timestamps
+    const { data: freshComments } = await supabase.from('crew_comments').select('*').eq('crew_id', c.id).order('created_at', { ascending: true })
+    if (freshComments) {
+      setCrewComments(freshComments)
+      setLocalComments(freshComments)
+    }
     setPendingIsNew(null)
     setSaving(false)
     showToast('Endringer lagret')
@@ -356,7 +444,22 @@ export default function BookingPage({ user }) {
     setEditingName(false)
     setEditingAllergy(false)
     setEditingCertificate(false)
+    // Reset skills + comments back to persisted state
+    setLocalSkills((c.skills || []).filter(sk => !sk.name.startsWith('Allergi:') && !sk.name.startsWith('Sertifikat:')))
+    setLocalComments(crewComments)
+    setNewSkillInput('')
+    setNewComment('')
+    setEditingComment(null)
     showToast('Endringer forkastet')
+  }
+
+  // Try to close the profile modal. If there are unsaved changes, ask first.
+  function tryCloseProfile() {
+    if (isDirty()) {
+      const ok = window.confirm('Du har ulagrede endringer. Lukk uten å lagre?')
+      if (!ok) return
+    }
+    setProfileOpen(null)
   }
 
   // Toggle the local pending value without saving. If the new value matches
@@ -378,23 +481,24 @@ export default function BookingPage({ user }) {
     showToast(newVal ? 'Markert som NY' : 'Fjernet NY-merket')
   }
 
-  async function addCrewComment() {
+  // Local-only: adds the comment to localComments with a temporary id. Persisted on saveAll.
+  function addCrewComment() {
     if (!newComment.trim() || !profileOpen) return
-    const { data } = await supabase.from('crew_comments').insert({
+    const tempId = '_tmp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8)
+    setLocalComments(prev => [...prev, {
+      id: tempId,
       crew_id: profileOpen.id,
       author: userName || 'Ukjent',
       author_id: userId,
-      content: newComment.trim()
-    }).select().single()
-    if (data) {
-      setCrewComments(prev => [...prev, data])
-      setNewComment('')
-    }
+      content: newComment.trim(),
+      created_at: new Date().toISOString(),
+    }])
+    setNewComment('')
   }
 
-  async function deleteCrewComment(id) {
-    await supabase.from('crew_comments').delete().eq('id', id)
-    setCrewComments(prev => prev.filter(c => c.id !== id))
+  // Local-only: removes the comment from localComments. Persisted on saveAll.
+  function deleteCrewComment(id) {
+    setLocalComments(prev => prev.filter(c => c.id !== id))
   }
 
   async function saveCertificate() {
@@ -492,26 +596,22 @@ export default function BookingPage({ user }) {
     showToast(first + ' ' + last + ' er lagt til!')
   }
 
-  async function addSkill() {
+  // Local-only: adds the skill to localSkills with a temporary id. Persisted on saveAll.
+  function addSkill() {
     if (!newSkillInput.trim() || !profileOpen) return
-    const { data } = await supabase.from('skills').insert({ crew_id: profileOpen.id, name: newSkillInput.trim(), comment: '' }).select().single()
-    if (data) {
-      setCrew(prev => prev.map(c => c.id === profileOpen.id ? { ...c, skills: [...(c.skills || []), data] } : c))
-      setProfileOpen(prev => ({ ...prev, skills: [...(prev.skills || []), data] }))
-      setNewSkillInput('')
-    }
+    const tempId = '_tmp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8)
+    setLocalSkills(prev => [...prev, { id: tempId, name: newSkillInput.trim(), comment: '' }])
+    setNewSkillInput('')
   }
 
-  async function deleteSkill(skillId) {
-    await supabase.from('skills').delete().eq('id', skillId)
-    setCrew(prev => prev.map(c => ({ ...c, skills: (c.skills || []).filter(s => s.id !== skillId) })))
-    setProfileOpen(prev => ({ ...prev, skills: (prev.skills || []).filter(s => s.id !== skillId) }))
+  // Local-only: removes the skill from localSkills. Persisted on saveAll.
+  function deleteSkill(skillId) {
+    setLocalSkills(prev => prev.filter(s => s.id !== skillId))
   }
 
-  async function saveComment(skillId, comment) {
-    await supabase.from('skills').update({ comment }).eq('id', skillId)
-    setCrew(prev => prev.map(c => ({ ...c, skills: (c.skills || []).map(s => s.id === skillId ? { ...s, comment } : s) })))
-    setProfileOpen(prev => ({ ...prev, skills: (prev.skills || []).map(s => s.id === skillId ? { ...s, comment } : s) }))
+  // Local-only: updates the comment of a skill in localSkills. Persisted on saveAll.
+  function saveComment(skillId, comment) {
+    setLocalSkills(prev => prev.map(s => s.id === skillId ? { ...s, comment } : s))
     setEditingComment(null)
   }
 
@@ -689,14 +789,14 @@ export default function BookingPage({ user }) {
 
       {/* Profile modal */}
       {profileOpen && (
-        <div style={s.overlay} onClick={() => setProfileOpen(null)}>
+        <div style={s.overlay} onClick={tryCloseProfile}>
           <div style={s.modal} onClick={e => e.stopPropagation()}>
-            <button style={s.closeBtn} onClick={() => setProfileOpen(null)}>X</button>
+            <button style={s.closeBtn} onClick={tryCloseProfile}>X</button>
             {(() => {
               const c = profileOpen
               const col = COLORS[c.color_index % COLORS.length]
               const freeDays = days.filter(d => getStatus(c.id, dk(d)) === 'free').length
-              const skills = (c.skills || []).filter(s => !s.name.startsWith('Allergi:'))
+              const skills = localSkills
               const weekBookings = days.map(d => ({day: fmtDay(d), b: getBooking(c.id, dk(d))})).filter(x => x.b && x.b.status === 'booked' && x.b.project)
               return <>
                 <div style={{...s.modalAvatar,background:col.bg,color:col.text}}>{c.initials}</div>
@@ -803,13 +903,14 @@ export default function BookingPage({ user }) {
                 {/* Erfaring / referanser — author-attributed comments */}
                 <div style={s.msec}>
                   <div style={s.msecHdr}>Erfaring / referanser</div>
-                  {crewComments.length === 0 && (
+                  {localComments.length === 0 && (
                     <p style={{fontSize:13,color:'#aaa',margin:'4px 0 10px'}}>Ingen referanser lagt til enda</p>
                   )}
-                  {crewComments.map(cm => (
-                    <div key={cm.id} style={s.commentItem}>
+                  {localComments.map(cm => {
+                    const isPending = String(cm.id).startsWith('_tmp_')
+                    return <div key={cm.id} style={s.commentItem}>
                       <div style={s.commentHead}>
-                        <span style={s.commentAuthor}>{cm.author || 'Ukjent'}</span>
+                        <span style={s.commentAuthor}>{cm.author || 'Ukjent'}{isPending && ' · ulagret'}</span>
                         <span style={s.commentDate}>{new Date(cm.created_at).toLocaleDateString('nb-NO',{day:'numeric',month:'short',year:'numeric'})}</span>
                       </div>
                       <p style={s.commentBody}>{cm.content}</p>
@@ -817,7 +918,7 @@ export default function BookingPage({ user }) {
                         <button style={s.commentDelete} onClick={() => deleteCrewComment(cm.id)}>Slett min kommentar</button>
                       )}
                     </div>
-                  ))}
+                  })}
                   <div style={{marginTop:10,display:'flex',flexDirection:'column',gap:8}}>
                     <textarea
                       style={{...s.formInput,resize:'vertical'}}
