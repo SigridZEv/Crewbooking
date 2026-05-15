@@ -881,24 +881,6 @@ export default function BookingPage({ user }) {
                     <button style={s.miniBtn} onClick={addSkill}>Legg til</button>
                   </div>
                 </div>
-                <div style={s.msec}>
-                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
-                    <div style={s.msecHdr}>Interne notater</div>
-                    {!editingNotes && <button style={s.editBtn} onClick={() => setEditingNotes(true)}>Rediger</button>}
-                  </div>
-                  {editingNotes ? (
-                    <div style={{display:'flex',flexDirection:'column',gap:8}}>
-                      <textarea style={{...s.formInput,resize:'vertical'}} rows={3} value={notesInput} onChange={e => setNotesInput(e.target.value)} placeholder='Fritekst — synlig for alle, uten forfatter' autoFocus />
-                      <div style={{display:'flex',gap:8}}>
-                        <button style={s.miniBtn} onClick={() => setEditingNotes(false)}>Ferdig</button>
-                        <button style={s.clearBtn} onClick={() => { setNotesInput(c.notes || ''); setEditingNotes(false) }}>Avbryt</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p style={{fontSize:13,color:notesInput?'#444':'#aaa',lineHeight:1.6,margin:0}}>{notesInput || 'Ingen notater'}</p>
-                  )}
-                </div>
-
                 {/* Erfaring / referanser — author-attributed comments */}
                 <div style={s.msec}>
                   <div style={s.msecHdr}>Erfaring / referanser</div>
