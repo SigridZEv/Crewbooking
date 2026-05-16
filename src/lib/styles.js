@@ -56,6 +56,8 @@ export const s = {
   skillChipDelete:{background:'transparent',color:'#1B3A78',border:'none',cursor:'pointer',padding:'0 6px',fontFamily:'inherit',fontSize:14,opacity:0.55,lineHeight:1,fontWeight:700},
   newStar:{display:'inline-block',marginLeft:6,padding:'1px 6px',borderRadius:8,background:'#1B3A78',color:'#fff',fontSize:9,fontWeight:700,letterSpacing:'0.05em',verticalAlign:'middle'},
   miniPill:{display:'inline-block',width:22,height:22,borderRadius:4,cursor:'pointer',border:'none',padding:0,fontFamily:'inherit'},
+  checkRow:{display:'flex',alignItems:'center',gap:10,padding:'7px 10px',fontSize:13,color:'#1a1a18',cursor:'pointer',borderRadius:6,marginBottom:2},
+  checkRowChecked:{background:'#EDF1F8'},
   calModeToggle:{display:'inline-flex',background:'#f1f0ea',borderRadius:8,padding:3,marginRight:8},
   calModeBtn:{padding:'4px 12px',fontSize:12,border:'none',background:'transparent',color:'#888',borderRadius:6,cursor:'pointer',fontFamily:'inherit',fontWeight:500},
   calModeBtnActive:{padding:'4px 12px',fontSize:12,border:'0.5px solid #d0cfc8',background:'#fff',color:'#1a1a18',borderRadius:6,cursor:'pointer',fontFamily:'inherit',fontWeight:600},

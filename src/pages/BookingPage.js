@@ -22,7 +22,7 @@ export default function BookingPage({ user }) {
   const [toast, setToast] = useState('')
   const [newSkillInput, setNewSkillInput] = useState('')
   const [editingComment, setEditingComment] = useState(null)
-  const [addForm, setAddForm] = useState({ first: '', last: '', rate: '', jobs: '', bio: '', skills: '', colorIndex: 0, phone: '', email: '', employment_form: '', category: '', is_new: false, birthdate: '', location: '', allergy: '', certificate: '' })
+  const [addForm, setAddForm] = useState({ first: '', last: '', rate: '', jobs: '', bio: '', skills: '', colorIndex: 0, phone: '', email: '', employment_form: '', category: '', is_new: false, birthdate: '', location: '', allergy: '', certificate: '', has_contract: false, has_office_key: false, has_warehouse_intro: false, has_sweater: false, has_tshirt: false })
   const [addError, setAddError] = useState('')
   const [saving, setSaving] = useState(false)
   const [userName, setUserName] = useState('')
@@ -66,6 +66,14 @@ export default function BookingPage({ user }) {
   // New items get an id starting with '_tmp_' so we can tell pending-adds from existing ones.
   const [localSkills, setLocalSkills] = useState([])
   const [localComments, setLocalComments] = useState([])
+  // Sjekkliste-felter (onboarding / utstyr) — bundled in one form for ergonomics.
+  const [onboardingForm, setOnboardingForm] = useState({
+    has_contract: false,
+    has_office_key: false,
+    has_warehouse_intro: false,
+    has_sweater: false,
+    has_tshirt: false,
+  })
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
 
@@ -155,6 +163,13 @@ export default function BookingPage({ user }) {
     setNotesInput(c.notes || '')
     setEditingBirthdate(false)
     setBirthdateInput(c.birthdate || '')
+    setOnboardingForm({
+      has_contract: !!c.has_contract,
+      has_office_key: !!c.has_office_key,
+      has_warehouse_intro: !!c.has_warehouse_intro,
+      has_sweater: !!c.has_sweater,
+      has_tshirt: !!c.has_tshirt,
+    })
   }
 
   async function saveRate() {
@@ -269,6 +284,11 @@ export default function BookingPage({ user }) {
     if (notesInput !== (c.notes || '')) return true
     if (locationInput !== (c.location || '')) return true
     if ((birthdateInput || '') !== (c.birthdate || '')) return true
+    // Sjekkliste-felter
+    const checklistFields = ['has_contract', 'has_office_key', 'has_warehouse_intro', 'has_sweater', 'has_tshirt']
+    for (const f of checklistFields) {
+      if (!!onboardingForm[f] !== !!c[f]) return true
+    }
     const existingAllergy = (c.skills || []).find(sk => sk.name.startsWith('Allergi:'))
     const currAllergy = existingAllergy ? existingAllergy.name.replace(/^Allergi:\s*/, '').trim() : ''
     if ((allergyInput || '').trim() !== currAllergy) return true
@@ -331,6 +351,11 @@ export default function BookingPage({ user }) {
     if (notesInput !== (c.notes || '')) updates.notes = notesInput
     if (locationInput !== (c.location || '')) updates.location = locationInput
     if ((birthdateInput || '') !== (c.birthdate || '')) updates.birthdate = birthdateInput || null
+    // Sjekkliste-felter
+    const checklistFields = ['has_contract', 'has_office_key', 'has_warehouse_intro', 'has_sweater', 'has_tshirt']
+    for (const f of checklistFields) {
+      if (!!onboardingForm[f] !== !!c[f]) updates[f] = !!onboardingForm[f]
+    }
 
     if (Object.keys(updates).length > 0) {
       await supabase.from('crew').update(updates).eq('id', c.id)
@@ -433,6 +458,13 @@ export default function BookingPage({ user }) {
     setLocationInput(c.location || '')
     setBirthdateInput(c.birthdate || '')
     setNameInput(c.name)
+    setOnboardingForm({
+      has_contract: !!c.has_contract,
+      has_office_key: !!c.has_office_key,
+      has_warehouse_intro: !!c.has_warehouse_intro,
+      has_sweater: !!c.has_sweater,
+      has_tshirt: !!c.has_tshirt,
+    })
     const allergySk = (c.skills || []).find(sk => sk.name.startsWith('Allergi:'))
     setAllergyInput(allergySk ? allergySk.name.replace(/^Allergi:\s*/, '').trim() : '')
     const certSk = (c.skills || []).find(sk => sk.name.startsWith('Sertifikat:'))
@@ -585,7 +617,7 @@ export default function BookingPage({ user }) {
   }
 
   async function addCrew() {
-    const { first, last, rate, jobs, bio, skills: skillsRaw, colorIndex, phone, email, employment_form, category, is_new, birthdate, location, allergy, certificate } = addForm
+    const { first, last, rate, jobs, bio, skills: skillsRaw, colorIndex, phone, email, employment_form, category, is_new, birthdate, location, allergy, certificate, has_contract, has_office_key, has_warehouse_intro, has_sweater, has_tshirt } = addForm
     if (!first || !last || !rate) { setAddError('Fyll ut alle obligatoriske felt.'); return }
     setAddError(''); setSaving(true)
     const insertPayload = {
@@ -602,6 +634,11 @@ export default function BookingPage({ user }) {
       is_new: !!is_new,
       birthdate: birthdate || null,
       location: location || '',
+      has_contract: !!has_contract,
+      has_office_key: !!has_office_key,
+      has_warehouse_intro: !!has_warehouse_intro,
+      has_sweater: !!has_sweater,
+      has_tshirt: !!has_tshirt,
     }
     const { data: newCrew, error } = await supabase.from('crew').insert(insertPayload).select().single()
     if (error || !newCrew) { setAddError('Noe gikk galt.'); setSaving(false); return }
@@ -622,7 +659,7 @@ export default function BookingPage({ user }) {
     }
     await loadCrew()
     setAddOpen(false)
-    setAddForm({ first: '', last: '', rate: '', jobs: '', bio: '', skills: '', colorIndex: 0, phone: '', email: '', employment_form: '', category: '', is_new: false, birthdate: '', location: '', allergy: '', certificate: '' })
+    setAddForm({ first: '', last: '', rate: '', jobs: '', bio: '', skills: '', colorIndex: 0, phone: '', email: '', employment_form: '', category: '', is_new: false, birthdate: '', location: '', allergy: '', certificate: '', has_contract: false, has_office_key: false, has_warehouse_intro: false, has_sweater: false, has_tshirt: false })
     setSaving(false)
     showToast(first + ' ' + last + ' er lagt til!')
   }
@@ -1070,6 +1107,27 @@ export default function BookingPage({ user }) {
                   )}
                 </div>
 
+                {/* Sjekkliste */}
+                <div style={s.msec}>
+                  <div style={s.msecHdr}>Sjekkliste</div>
+                  {[
+                    { key: 'has_contract', label: 'Kontrakt' },
+                    { key: 'has_office_key', label: 'Nøkkel til P27' },
+                    { key: 'has_warehouse_intro', label: 'Lagergjennomgang' },
+                    { key: 'has_sweater', label: 'Z-genser utdelt' },
+                    { key: 'has_tshirt', label: 'Z-tskjorte utdelt' },
+                  ].map(item => (
+                    <label key={item.key} style={{...s.checkRow, ...(onboardingForm[item.key] ? s.checkRowChecked : {})}}>
+                      <input
+                        type="checkbox"
+                        checked={!!onboardingForm[item.key]}
+                        onChange={e => setOnboardingForm(f => ({...f, [item.key]: e.target.checked}))}
+                      />
+                      {item.label}
+                    </label>
+                  ))}
+                </div>
+
                 <div style={s.statsGrid}>
                   <div style={s.statCard}><div style={s.statLabel}>Ledige dager ({calMode === 'month' ? 'måned' : 'uke'})</div><div style={s.statVal}>{freeDays} av {days.length}</div></div>
                   <div style={s.statCard}><div style={s.statLabel}>Gjennomforte jobber</div><div style={s.statVal}>{c.jobs}</div></div>
@@ -1188,6 +1246,25 @@ export default function BookingPage({ user }) {
               <div style={{display:'flex',gap:8,marginTop:6,flexWrap:'wrap'}}>
                 {COLORS.map((col,i) => <div key={i} onClick={() => setAddForm(f=>({...f,colorIndex:i}))} style={{width:26,height:26,borderRadius:'50%',background:col.bg,cursor:'pointer',border:addForm.colorIndex===i?'2px solid #1a1a18':'2px solid transparent'}} />)}
               </div>
+            </div>
+            <div style={{marginBottom:14}}>
+              <label style={s.formLabel}>Sjekkliste</label>
+              {[
+                { key: 'has_contract', label: 'Kontrakt' },
+                { key: 'has_office_key', label: 'Nøkkel til P27' },
+                { key: 'has_warehouse_intro', label: 'Lagergjennomgang' },
+                { key: 'has_sweater', label: 'Z-genser utdelt' },
+                { key: 'has_tshirt', label: 'Z-tskjorte utdelt' },
+              ].map(item => (
+                <label key={item.key} style={{...s.checkRow,...(addForm[item.key]?s.checkRowChecked:{})}}>
+                  <input
+                    type="checkbox"
+                    checked={!!addForm[item.key]}
+                    onChange={e => setAddForm(f => ({...f, [item.key]: e.target.checked}))}
+                  />
+                  {item.label}
+                </label>
+              ))}
             </div>
             {addError && <p style={{fontSize:12,color:'#A32D2D',marginBottom:8}}>{addError}</p>}
             <button style={s.submitBtn} onClick={addCrew} disabled={saving}>{saving?'Lagrer...':'Legg til'}</button>
