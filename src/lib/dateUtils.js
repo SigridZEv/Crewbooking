@@ -24,3 +24,17 @@ export function fmtDay(d) {
 export function dk(d) {
   return d.toISOString().slice(0, 10)
 }
+
+// Returns all dates of a calendar month, offset by `offset` months from today.
+// offset=0 means current month, +1 means next month, -1 means last month.
+export function getMonthDates(offset) {
+  const now = new Date()
+  const target = new Date(now.getFullYear(), now.getMonth() + offset, 1)
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate()
+  return Array.from({ length: lastDay }, (_, i) => new Date(target.getFullYear(), target.getMonth(), i + 1))
+}
+
+// Format a Date as "Juni 2026" (Norwegian)
+export function fmtMonth(d) {
+  return d.toLocaleDateString('nb-NO', { month: 'long', year: 'numeric' })
+}

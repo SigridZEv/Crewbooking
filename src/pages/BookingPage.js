@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { COLORS, ALLERGIES, STATUS, CATEGORIES } from '../lib/constants'
-import { getWeekDates, fmtDay, dk } from '../lib/dateUtils'
+import { getWeekDates, fmtDay, dk, getMonthDates, fmtMonth } from '../lib/dateUtils'
 import { s } from '../lib/styles'
 
 export default function BookingPage({ user }) {
@@ -9,6 +9,8 @@ export default function BookingPage({ user }) {
   const [crew, setCrew] = useState([])
   const [bookings, setBookings] = useState({})
   const [weekOffset, setWeekOffset] = useState(0)
+  const [monthOffset, setMonthOffset] = useState(0)
+  const [calMode, setCalMode] = useState('week') // 'week' | 'month'
   const [loading, setLoading] = useState(true)
   const [searchCal, setSearchCal] = useState('')
   const [filterAvail, setFilterAvail] = useState('')
@@ -20,7 +22,7 @@ export default function BookingPage({ user }) {
   const [toast, setToast] = useState('')
   const [newSkillInput, setNewSkillInput] = useState('')
   const [editingComment, setEditingComment] = useState(null)
-  const [addForm, setAddForm] = useState({ first: '', last: '', rate: '', jobs: '', bio: '', skills: '', colorIndex: 0 })
+  const [addForm, setAddForm] = useState({ first: '', last: '', rate: '', jobs: '', bio: '', skills: '', colorIndex: 0, phone: '', email: '', employment_form: '', category: '', is_new: false, birthdate: '', location: '', allergy: '', certificate: '' })
   const [addError, setAddError] = useState('')
   const [saving, setSaving] = useState(false)
   const [userName, setUserName] = useState('')
@@ -75,14 +77,14 @@ export default function BookingPage({ user }) {
   }, [])
 
   const loadBookings = useCallback(async () => {
-    const days = getWeekDates(weekOffset)
-    const { data } = await supabase.from('bookings').select('*').gte('date', dk(days[0])).lte('date', dk(days[6]))
+    const days = calMode === 'month' ? getMonthDates(monthOffset) : getWeekDates(weekOffset)
+    const { data } = await supabase.from('bookings').select('*').gte('date', dk(days[0])).lte('date', dk(days[days.length - 1]))
     if (data) {
       const map = {}
       data.forEach(b => { map[b.crew_id + '_' + b.date] = b })
       setBookings(map)
     }
-  }, [weekOffset])
+  }, [weekOffset, monthOffset, calMode])
 
   useEffect(() => { loadCrew() }, [loadCrew])
   useEffect(() => {
@@ -583,15 +585,44 @@ export default function BookingPage({ user }) {
   }
 
   async function addCrew() {
-    const { first, last, rate, jobs, bio, skills: skillsRaw, colorIndex } = addForm
+    const { first, last, rate, jobs, bio, skills: skillsRaw, colorIndex, phone, email, employment_form, category, is_new, birthdate, location, allergy, certificate } = addForm
     if (!first || !last || !rate) { setAddError('Fyll ut alle obligatoriske felt.'); return }
     setAddError(''); setSaving(true)
-    const { data: newCrew, error } = await supabase.from('crew').insert({ name: first + ' ' + last, initials: (first[0] + last[0]).toUpperCase(), rate: parseInt(rate), jobs: parseInt(jobs) || 0, bio, color_index: colorIndex }).select().single()
+    const insertPayload = {
+      name: (first.trim() + ' ' + last.trim()),
+      initials: (first[0] + last[0]).toUpperCase(),
+      rate: parseInt(rate, 10),
+      jobs: parseInt(jobs, 10) || 0,
+      bio: bio || '',
+      color_index: colorIndex,
+      phone: phone || '',
+      email: email || '',
+      employment_form: employment_form || '',
+      category: category || '',
+      is_new: !!is_new,
+      birthdate: birthdate || null,
+      location: location || '',
+    }
+    const { data: newCrew, error } = await supabase.from('crew').insert(insertPayload).select().single()
     if (error || !newCrew) { setAddError('Noe gikk galt.'); setSaving(false); return }
-    if (skillsRaw.trim()) await supabase.from('skills').insert(skillsRaw.split(',').map(s => s.trim()).filter(Boolean).map(s => ({ crew_id: newCrew.id, name: s, comment: '' })))
+    // Generic skills (comma-separated)
+    const skillRows = []
+    if (skillsRaw.trim()) {
+      skillRows.push(...skillsRaw.split(',').map(s => s.trim()).filter(Boolean).map(s => ({ crew_id: newCrew.id, name: s, comment: '' })))
+    }
+    // Allergi and Sertifikat as special-prefixed skill rows (same convention as the profile modal)
+    if (allergy && allergy.trim()) {
+      skillRows.push({ crew_id: newCrew.id, name: 'Allergi: ' + allergy.trim(), comment: '' })
+    }
+    if (certificate && certificate.trim()) {
+      skillRows.push({ crew_id: newCrew.id, name: 'Sertifikat: ' + certificate.trim(), comment: '' })
+    }
+    if (skillRows.length > 0) {
+      await supabase.from('skills').insert(skillRows)
+    }
     await loadCrew()
     setAddOpen(false)
-    setAddForm({ first: '', last: '', rate: '', jobs: '', bio: '', skills: '', colorIndex: 0 })
+    setAddForm({ first: '', last: '', rate: '', jobs: '', bio: '', skills: '', colorIndex: 0, phone: '', email: '', employment_form: '', category: '', is_new: false, birthdate: '', location: '', allergy: '', certificate: '' })
     setSaving(false)
     showToast(first + ' ' + last + ' er lagt til!')
   }
@@ -617,7 +648,7 @@ export default function BookingPage({ user }) {
 
   async function logout() { await supabase.auth.signOut() }
 
-  const days = getWeekDates(weekOffset)
+  const days = calMode === 'month' ? getMonthDates(monthOffset) : getWeekDates(weekOffset)
 
   const filteredCal = crew.filter(c => {
     if (searchCal && !c.name.toLowerCase().includes(searchCal.toLowerCase())) return false
@@ -693,10 +724,25 @@ export default function BookingPage({ user }) {
             </div>
           )}
           <div style={s.weekNav}>
-            <button style={s.navBtn} onClick={() => setWeekOffset(w => w-1)}>Forrige</button>
-            {weekOffset !== 0 && <button style={s.todayBtn} onClick={() => setWeekOffset(0)}>I dag</button>}
-            <span style={s.weekLabel}>{days[0].toLocaleDateString('nb-NO',{day:'numeric',month:'long'})} - {days[6].toLocaleDateString('nb-NO',{day:'numeric',month:'long',year:'numeric'})}</span>
-            <button style={s.navBtn} onClick={() => setWeekOffset(w => w+1)}>Neste</button>
+            <div style={s.calModeToggle}>
+              <button style={calMode === 'week' ? s.calModeBtnActive : s.calModeBtn} onClick={() => setCalMode('week')}>Uke</button>
+              <button style={calMode === 'month' ? s.calModeBtnActive : s.calModeBtn} onClick={() => setCalMode('month')}>Måned</button>
+            </div>
+            {calMode === 'week' ? (
+              <>
+                <button style={s.navBtn} onClick={() => setWeekOffset(w => w-1)}>Forrige</button>
+                {weekOffset !== 0 && <button style={s.todayBtn} onClick={() => setWeekOffset(0)}>I dag</button>}
+                <span style={s.weekLabel}>{days[0].toLocaleDateString('nb-NO',{day:'numeric',month:'long'})} - {days[days.length-1].toLocaleDateString('nb-NO',{day:'numeric',month:'long',year:'numeric'})}</span>
+                <button style={s.navBtn} onClick={() => setWeekOffset(w => w+1)}>Neste</button>
+              </>
+            ) : (
+              <>
+                <button style={s.navBtn} onClick={() => setMonthOffset(m => m-1)}>Forrige</button>
+                {monthOffset !== 0 && <button style={s.todayBtn} onClick={() => setMonthOffset(0)}>I dag</button>}
+                <span style={s.weekLabel}>{fmtMonth(days[0])}</span>
+                <button style={s.navBtn} onClick={() => setMonthOffset(m => m+1)}>Neste</button>
+              </>
+            )}
           </div>
           <div style={s.legend}>
             {Object.entries(STATUS).map(([k,v]) => <span key={k} style={s.legendItem}><span style={{...s.dot,background:v.bg,border:'1px solid '+v.c}}/>{v.full}</span>)}
@@ -707,14 +753,16 @@ export default function BookingPage({ user }) {
                 <th style={{...s.th,textAlign:'left',minWidth:150}}>Crew</th>
                 {days.map((d, i) => {
                   const dStr = dk(d)
-                  const isWeekend = i >= 5
+                  const dow = d.getDay() // 0=Sun, 6=Sat
+                  const isWeekend = dow === 0 || dow === 6
                   const isToday = dStr === todayStr
                   return <th key={dStr} style={{
                     ...s.th,
+                    ...(calMode === 'month' ? {minWidth:30, padding:'6px 2px', fontSize:10} : {}),
                     ...(isWeekend ? s.weekendHeader : {}),
                     ...(isToday ? s.todayHeader : {}),
                     ...(filterDay===dStr ? {background:'#f0f7ff'} : {}),
-                  }}>{fmtDay(d)}</th>
+                  }}>{calMode === 'month' ? d.getDate() : fmtDay(d)}</th>
                 })}
               </tr></thead>
               <tbody>
@@ -725,7 +773,7 @@ export default function BookingPage({ user }) {
                     <td style={s.crewCell}>
                       <div style={s.crewInfo} onClick={() => openProfile(c)}>
                         <div style={{...s.avatar,background:col.bg,color:col.text}}>{c.initials}</div>
-                        <span style={s.crewName}>{c.name}</span>
+                        <span style={s.crewName}>{c.name}{c.is_new && <span style={s.newStar}>★ NY</span>}</span>
                       </div>
                     </td>
                     {days.map((d, i) => {
@@ -734,21 +782,29 @@ export default function BookingPage({ user }) {
                       const cfg = STATUS[st]
                       const booking = getBooking(c.id, date)
                       const isHighlighted = filterDay === date
-                      const isWeekend = i >= 5
+                      const dow = d.getDay()
+                      const isWeekend = dow === 0 || dow === 6
                       const isToday = date === todayStr
                       return <td key={date} style={{
                         ...s.dayCell,
+                        ...(calMode === 'month' ? {minWidth:30, padding:'4px 2px'} : {}),
                         ...(isWeekend ? s.weekendCell : {}),
                         ...(isToday ? s.todayCell : {}),
                         ...(isHighlighted ? {background:'#f0f7ff'} : {}),
                       }}>
-                        <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
-                          <button style={{...s.pill,background:cfg.bg,color:cfg.c}}
-                            title={booking && booking.project ? cfg.full + ' - ' + booking.project : cfg.full}
-                            onClick={() => openChange(c, date, fmtDay(d))}>{cfg.short}</button>
-                          {booking && booking.project && <span style={s.projectLabel}>{booking.project}</span>}
-                          {booking && booking.booked_by && <span style={s.bookedByLabel}>av {booking.booked_by}</span>}
-                        </div>
+                        {calMode === 'month' ? (
+                          <button style={{...s.miniPill,background:cfg.bg}}
+                            title={booking && booking.project ? cfg.full + ' — ' + booking.project : cfg.full}
+                            onClick={() => openChange(c, date, fmtDay(d))} />
+                        ) : (
+                          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
+                            <button style={{...s.pill,background:cfg.bg,color:cfg.c}}
+                              title={booking && booking.project ? cfg.full + ' - ' + booking.project : cfg.full}
+                              onClick={() => openChange(c, date, fmtDay(d))}>{cfg.short}</button>
+                            {booking && booking.project && <span style={s.projectLabel}>{booking.project}</span>}
+                            {booking && booking.booked_by && <span style={s.bookedByLabel}>av {booking.booked_by}</span>}
+                          </div>
+                        )}
                       </td>
                     })}
                   </tr>
@@ -773,7 +829,7 @@ export default function BookingPage({ user }) {
               return <div key={c.id} style={s.crewCard} onClick={() => openProfile(c)}>
                 <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
                   <div style={{...s.avatar,width:40,height:40,background:col.bg,color:col.text}}>{c.initials}</div>
-                  <div style={s.crewName}>{c.name}</div>
+                  <div style={s.crewName}>{c.name}{c.is_new && <span style={s.newStar}>★ NY</span>}</div>
                 </div>
                 <div style={s.rate}>{c.rate} kr<span style={s.rateUnit}>/t</span></div>
                 <div style={{display:'flex',flexWrap:'wrap',gap:4,marginTop:10}}>
@@ -1015,7 +1071,7 @@ export default function BookingPage({ user }) {
                 </div>
 
                 <div style={s.statsGrid}>
-                  <div style={s.statCard}><div style={s.statLabel}>Ledige dager (uke)</div><div style={s.statVal}>{freeDays} av 7</div></div>
+                  <div style={s.statCard}><div style={s.statLabel}>Ledige dager ({calMode === 'month' ? 'måned' : 'uke'})</div><div style={s.statVal}>{freeDays} av {days.length}</div></div>
                   <div style={s.statCard}><div style={s.statLabel}>Gjennomforte jobber</div><div style={s.statVal}>{c.jobs}</div></div>
                 </div>
 
@@ -1085,10 +1141,47 @@ export default function BookingPage({ user }) {
               <div><label style={s.formLabel}>Etternavn *</label><input style={s.formInput} value={addForm.last} onChange={e => setAddForm(f=>({...f,last:e.target.value}))} placeholder="Haugen" /></div>
             </div>
             <div style={s.formRow2}>
-              <div><label style={s.formLabel}>Timelonn (kr) *</label><input style={s.formInput} type="number" value={addForm.rate} onChange={e => setAddForm(f=>({...f,rate:e.target.value}))} placeholder="600" /></div>
-              <div><label style={s.formLabel}>Antall jobber</label><input style={s.formInput} type="number" value={addForm.jobs} onChange={e => setAddForm(f=>({...f,jobs:e.target.value}))} placeholder="0" /></div>
+              <div><label style={s.formLabel}>Telefon</label><input style={s.formInput} value={addForm.phone} onChange={e => setAddForm(f=>({...f,phone:e.target.value}))} placeholder="99 99 99 99" /></div>
+              <div><label style={s.formLabel}>E-post</label><input style={s.formInput} type="email" value={addForm.email} onChange={e => setAddForm(f=>({...f,email:e.target.value}))} placeholder="navn@eksempel.no" /></div>
             </div>
-            <div style={{marginBottom:14}}><label style={s.formLabel}>Kompetanse (kommaseparert)</label><input style={s.formInput} value={addForm.skills} onChange={e => setAddForm(f=>({...f,skills:e.target.value}))} placeholder="Sony FX9, Drone" /></div>
+            <div style={s.formRow2}>
+              <div><label style={s.formLabel}>Timelonn (kr) *</label><input style={s.formInput} type="number" value={addForm.rate} onChange={e => setAddForm(f=>({...f,rate:e.target.value}))} placeholder="600" /></div>
+              <div><label style={s.formLabel}>Lønnform</label>
+                <select style={s.formInput} value={addForm.employment_form} onChange={e => setAddForm(f=>({...f,employment_form:e.target.value}))}>
+                  <option value="">— Velg —</option>
+                  <option value="Lønn">Lønn</option>
+                  <option value="Faktura">Faktura</option>
+                  <option value="Honorar">Honorar etter avtale</option>
+                </select>
+              </div>
+            </div>
+            <div style={s.formRow2}>
+              <div><label style={s.formLabel}>Kategori</label>
+                <select style={s.formInput} value={addForm.category} onChange={e => setAddForm(f=>({...f,category:e.target.value}))}>
+                  <option value="">— Ingen kategori —</option>
+                  {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+              </div>
+              <div style={{display:'flex',alignItems:'flex-end',gap:8}}>
+                <label style={{display:'flex',alignItems:'center',gap:6,fontSize:13,color:'#1a1a18',cursor:'pointer',padding:'8px 0'}}>
+                  <input type="checkbox" checked={addForm.is_new} onChange={e => setAddForm(f=>({...f,is_new:e.target.checked}))} />
+                  Marker som NY
+                </label>
+              </div>
+            </div>
+            <div style={s.formRow2}>
+              <div><label style={s.formLabel}>Bosted</label><input style={s.formInput} value={addForm.location} onChange={e => setAddForm(f=>({...f,location:e.target.value}))} placeholder="f.eks. Oslo" /></div>
+              <div><label style={s.formLabel}>Fødselsdato</label><input style={s.formInput} type="date" value={addForm.birthdate} onChange={e => setAddForm(f=>({...f,birthdate:e.target.value}))} /></div>
+            </div>
+            <div style={s.formRow2}>
+              <div><label style={s.formLabel}>Allergi / kosthold</label><input style={s.formInput} value={addForm.allergy} onChange={e => setAddForm(f=>({...f,allergy:e.target.value}))} placeholder="f.eks. Nøtter, Laktose" /></div>
+              <div><label style={s.formLabel}>Sertifikat</label><input style={s.formInput} value={addForm.certificate} onChange={e => setAddForm(f=>({...f,certificate:e.target.value}))} placeholder="f.eks. Klasse B" /></div>
+            </div>
+            <div style={s.formRow2}>
+              <div><label style={s.formLabel}>Antall jobber</label><input style={s.formInput} type="number" value={addForm.jobs} onChange={e => setAddForm(f=>({...f,jobs:e.target.value}))} placeholder="0" /></div>
+              <div></div>
+            </div>
+            <div style={{marginBottom:14}}><label style={s.formLabel}>Ferdigheter (kommaseparert)</label><input style={s.formInput} value={addForm.skills} onChange={e => setAddForm(f=>({...f,skills:e.target.value}))} placeholder="Sony FX9, Drone, Lyd" /></div>
             <div style={{marginBottom:14}}><label style={s.formLabel}>Kort bio</label><textarea style={{...s.formInput,resize:'vertical'}} rows={2} value={addForm.bio} onChange={e => setAddForm(f=>({...f,bio:e.target.value}))} placeholder="Kort beskrivelse..." /></div>
             <div style={{marginBottom:14}}>
               <label style={s.formLabel}>Avatarfarge</label>
