@@ -48,6 +48,12 @@ export default function BookingPage({ user }) {
   const [editingCertificate, setEditingCertificate] = useState(false)
   const [certificateInput, setCertificateInput] = useState('')
   const [crewComments, setCrewComments] = useState([])
+  // Mine prosjekter (eier = innlogget bruker)
+  const [myProjects, setMyProjects] = useState([])
+  const [newProjectNumber, setNewProjectNumber] = useState('')
+  const [newProjectName, setNewProjectName] = useState('')
+  // Project picker in booking-endring modal
+  const [selectedProjectId, setSelectedProjectId] = useState('')
   const [newComment, setNewComment] = useState('')
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState('')
@@ -107,9 +113,34 @@ export default function BookingPage({ user }) {
       } else {
         setMyProfileForm(f => ({ ...f, email: user.email || '' }))
       }
+      // Load this user's projects
+      const { data: projs } = await supabase.from('projects').select('*').eq('owner_id', user.id).order('created_at', { ascending: false })
+      if (projs) setMyProjects(projs)
     }
     loadProfile()
   }, [])
+
+  async function addProject() {
+    if (!newProjectName.trim() || !userId) return
+    const { data, error } = await supabase.from('projects').insert({
+      owner_id: userId,
+      project_number: newProjectNumber.trim(),
+      project_name: newProjectName.trim(),
+    }).select().single()
+    if (!error && data) {
+      setMyProjects(prev => [data, ...prev])
+      setNewProjectNumber('')
+      setNewProjectName('')
+      showToast('Prosjekt lagt til')
+    }
+  }
+
+  async function deleteProject(id) {
+    if (!window.confirm('Slett dette prosjektet? Bookinger som er koblet til prosjektet vil få koblingen fjernet, men bookingen blir igjen.')) return
+    await supabase.from('projects').delete().eq('id', id)
+    setMyProjects(prev => prev.filter(p => p.id !== id))
+    showToast('Prosjekt slettet')
+  }
   useEffect(() => { loadBookings() }, [loadBookings])
 
   function getBooking(crewId, date) { return bookings[crewId + '_' + date] || null }
@@ -124,6 +155,7 @@ export default function BookingPage({ user }) {
     setPendingStatus(null)
     setProjectInput('')
     setBookedByInput('')
+    setSelectedProjectId('')
   }
 
   function openProfile(c) {
@@ -585,7 +617,20 @@ export default function BookingPage({ user }) {
     if (!changeTarget || !pendingStatus) return
     const { crew: c, date } = changeTarget
     setSaving(true)
-    const payload = { crew_id: c.id, date, status: pendingStatus, project: projectInput.trim(), booked_by: bookedByInput.trim() }
+    // If a project is picked from the dropdown, use its name for the text field
+    // (denormalised for display); otherwise fall back to whatever was typed.
+    const pickedProject = myProjects.find(p => p.id === selectedProjectId)
+    const projectText = pickedProject
+      ? (pickedProject.project_number ? pickedProject.project_number + ' — ' : '') + pickedProject.project_name
+      : projectInput.trim()
+    const payload = {
+      crew_id: c.id,
+      date,
+      status: pendingStatus,
+      project: projectText,
+      project_id: selectedProjectId || null,
+      booked_by: bookedByInput.trim(),
+    }
     await supabase.from('bookings').upsert(payload, { onConflict: 'crew_id,date' })
     setBookings(prev => ({ ...prev, [c.id + '_' + date]: payload }))
     setChangeTarget(null)
@@ -1166,7 +1211,27 @@ export default function BookingPage({ user }) {
             </> : <>
               <div style={{fontSize:13,color:'#888',marginBottom:12}}>{STATUS[pendingStatus].full} - fyll inn detaljer</div>
               <label style={s.formLabel}>Prosjekt / arrangement</label>
-              <input style={{...s.formInput,marginBottom:10}} value={projectInput} onChange={e => setProjectInput(e.target.value)} placeholder="f.eks. Telenor konferanse" autoFocus />
+              {myProjects.length > 0 && (
+                <select
+                  style={{...s.formInput,marginBottom:8}}
+                  value={selectedProjectId}
+                  onChange={e => {
+                    setSelectedProjectId(e.target.value)
+                    const picked = myProjects.find(p => p.id === e.target.value)
+                    if (picked) {
+                      setProjectInput((picked.project_number ? picked.project_number + ' — ' : '') + picked.project_name)
+                    }
+                  }}
+                >
+                  <option value="">— Velg fra mine prosjekter —</option>
+                  {myProjects.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.project_number ? p.project_number + ' — ' : ''}{p.project_name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <input style={{...s.formInput,marginBottom:10}} value={projectInput} onChange={e => { setProjectInput(e.target.value); setSelectedProjectId('') }} placeholder={myProjects.length > 0 ? 'eller skriv fritt...' : 'f.eks. Telenor konferanse'} autoFocus />
               <label style={s.formLabel}>Booket av</label>
               <input style={{...s.formInput,marginBottom:16}} value={bookedByInput} onChange={e => setBookedByInput(e.target.value)} placeholder="Ditt navn" />
               <div style={{display:'flex',gap:8}}>
@@ -1277,6 +1342,41 @@ export default function BookingPage({ user }) {
             <div style={{marginBottom:20}}><label style={s.formLabel}>E-post</label><input style={s.formInput} type="email" value={myProfileForm.email} onChange={e => setMyProfileForm(f => ({...f,email:e.target.value}))} placeholder="navn@zevent.no" /></div>
             <button style={s.submitBtn} onClick={saveMyProfile}>Lagre profil</button>
             <button style={{...s.submitBtn,marginTop:10,background:'none',border:'1px solid #C7D0F0',color:'#3B5BDB',boxShadow:'none'}} onClick={() => { setMyProfileOpen(false); setChangePasswordOpen(true) }}>🔑 Bytt passord</button>
+
+            {/* Mine prosjekter */}
+            <div style={{marginTop:24,paddingTop:20,borderTop:'1px solid #e0dfd8'}}>
+              <div style={{fontSize:13,fontWeight:700,color:'#1B3A78',letterSpacing:'0.05em',textTransform:'uppercase',marginBottom:10}}>Mine prosjekter</div>
+              {myProjects.length === 0 && (
+                <p style={{fontSize:13,color:'#aaa',margin:'4px 0 12px',fontStyle:'italic'}}>Du har ingen prosjekter enda</p>
+              )}
+              {myProjects.map(p => (
+                <div key={p.id} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 10px',background:'#F5F4F0',borderRadius:8,marginBottom:6}}>
+                  {p.project_number && <span style={{fontSize:12,fontWeight:700,color:'#1B3A78',minWidth:60}}>{p.project_number}</span>}
+                  <span style={{fontSize:13,color:'#1a1a18',flex:1}}>{p.project_name}</span>
+                  <button style={s.commentDelete} onClick={() => deleteProject(p.id)}>Slett</button>
+                </div>
+              ))}
+              <div style={{display:'flex',gap:6,marginTop:10}}>
+                <input
+                  style={{...s.formInput,flex:'0 0 100px'}}
+                  value={newProjectNumber}
+                  onChange={e => setNewProjectNumber(e.target.value)}
+                  placeholder="Nr."
+                />
+                <input
+                  style={{...s.formInput,flex:1}}
+                  value={newProjectName}
+                  onChange={e => setNewProjectName(e.target.value)}
+                  placeholder="Prosjektnavn"
+                  onKeyDown={e => { if(e.key==='Enter') addProject() }}
+                />
+                <button
+                  style={{...s.miniBtn, opacity: newProjectName.trim() ? 1 : 0.5, cursor: newProjectName.trim() ? 'pointer' : 'not-allowed'}}
+                  disabled={!newProjectName.trim()}
+                  onClick={addProject}
+                >Legg til</button>
+              </div>
+            </div>
           </div>
         </div>
       )}

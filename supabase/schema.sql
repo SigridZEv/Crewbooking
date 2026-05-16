@@ -73,6 +73,21 @@ alter table bookings add column if not exists project text default '';
 alter table bookings add column if not exists booked_by text default '';
 
 -- ------------------------------------------------------------
+-- Prosjekter (eid av en prosjektleder/bruker)
+-- ------------------------------------------------------------
+create table if not exists projects (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid references auth.users(id) on delete cascade,
+  project_number text default '',
+  project_name text not null,
+  created_at timestamptz default now()
+);
+
+-- Bookings får en valgfri kobling til et prosjekt (i tillegg til det eksisterende
+-- fritekst-feltet 'project' som beholdes for bakoverkompatibilitet).
+alter table bookings add column if not exists project_id uuid references projects(id) on delete set null;
+
+-- ------------------------------------------------------------
 -- Brukerprofiler (innloggede brukere — separat fra crew)
 -- ------------------------------------------------------------
 create table if not exists user_profiles (
@@ -104,6 +119,7 @@ alter table skills enable row level security;
 alter table bookings enable row level security;
 alter table user_profiles enable row level security;
 alter table crew_comments enable row level security;
+alter table projects enable row level security;
 
 -- Drop + recreate policies for å være idempotent
 drop policy if exists "Innloggede brukere kan lese crew" on crew;
@@ -117,6 +133,8 @@ drop policy if exists "Brukere kan endre egen profil" on user_profiles;
 drop policy if exists "Innloggede brukere kan lese kommentarer" on crew_comments;
 drop policy if exists "Innloggede brukere kan skrive kommentarer" on crew_comments;
 drop policy if exists "Forfatter kan slette egen kommentar" on crew_comments;
+drop policy if exists "Innloggede kan lese prosjekter" on projects;
+drop policy if exists "Eier kan endre egne prosjekter" on projects;
 
 create policy "Innloggede brukere kan lese crew" on crew
   for select using (auth.role() = 'authenticated');
@@ -152,6 +170,14 @@ create policy "Innloggede brukere kan skrive kommentarer" on crew_comments
 
 create policy "Forfatter kan slette egen kommentar" on crew_comments
   for delete using (auth.uid() = author_id);
+
+-- Prosjekter: alle innloggede kan lese alle prosjekter (slik at en kollegas
+-- bookede prosjekt-navn vises overalt), men kun eieren kan endre sine egne.
+create policy "Innloggede kan lese prosjekter" on projects
+  for select using (auth.role() = 'authenticated');
+
+create policy "Eier kan endre egne prosjekter" on projects
+  for all using (auth.uid() = owner_id);
 
 -- ============================================================
 -- Eksempeldata (valgfritt — slett hvis du vil starte tomt)
