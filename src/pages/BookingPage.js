@@ -427,24 +427,13 @@ export default function BookingPage({ user }) {
       await supabase.from('crew_comments').delete().in('id', toDeleteComments)
     }
 
-    // Reload crew list so the calendar view stays in sync
+    // Reload crew list so the calendar view stays in sync — that's the only
+    // visible state after the modal closes, so it's the only one we refresh.
     await loadCrew()
-    // Refetch THIS crew with its skills so localSkills/profileOpen have real DB ids (no more _tmp_)
-    const { data: freshCrew } = await supabase.from('crew').select('*, skills(*)').eq('id', c.id).single()
-    if (freshCrew) {
-      setProfileOpen(freshCrew)
-      setLocalSkills((freshCrew.skills || []).filter(sk => !sk.name.startsWith('Allergi:') && !sk.name.startsWith('Sertifikat:')))
-    }
-    // Reload comments so we have proper DB ids/timestamps
-    const { data: freshComments } = await supabase.from('crew_comments').select('*').eq('crew_id', c.id).order('created_at', { ascending: true })
-    if (freshComments) {
-      setCrewComments(freshComments)
-      setLocalComments(freshComments)
-    }
-    setPendingIsNew(null)
     setSaving(false)
-    showToast('Endringer lagret')
+    setPendingIsNew(null)
     setProfileOpen(null)
+    showToast('Endringer lagret')
   }
 
   // Discard all pending field edits and reset inputs to the persisted values.
