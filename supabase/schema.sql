@@ -35,6 +35,12 @@ alter table crew add column if not exists employment_form text default '';
 alter table crew add column if not exists category text default '';
 -- is_new: flagget for nye crew (uavhengig av kategori)
 alter table crew add column if not exists is_new boolean default false;
+-- Onboarding-sjekkliste
+alter table crew add column if not exists has_contract boolean default false;
+alter table crew add column if not exists has_office_key boolean default false;
+alter table crew add column if not exists has_warehouse_intro boolean default false;
+alter table crew add column if not exists has_sweater boolean default false;
+alter table crew add column if not exists has_tshirt boolean default false;
 
 -- ------------------------------------------------------------
 -- Skills / Allergier / Sertifikater per crew-person
