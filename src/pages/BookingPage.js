@@ -444,6 +444,7 @@ export default function BookingPage({ user }) {
     setPendingIsNew(null)
     setSaving(false)
     showToast('Endringer lagret')
+    setProfileOpen(null)
   }
 
   // Discard all pending field edits and reset inputs to the persisted values.
@@ -1148,7 +1149,7 @@ export default function BookingPage({ user }) {
                     <div style={s.saveBarText}>Du har ulagrede endringer</div>
                     <div style={{display:'flex',gap:8}}>
                       <button style={s.saveBarCancel} onClick={cancelAll} disabled={saving}>Avbryt</button>
-                      <button style={s.saveBarSave} onClick={saveAll} disabled={saving}>{saving ? 'Lagrer…' : 'Lagre alle endringer'}</button>
+                      <button style={s.saveBarSave} onClick={saveAll} disabled={saving}>{saving ? 'Lagrer…' : 'Lagre endringer og lukk profil'}</button>
                     </div>
                   </div>
                 )}
