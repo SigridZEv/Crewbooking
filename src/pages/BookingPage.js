@@ -4,7 +4,7 @@ import { COLORS, ALLERGIES, STATUS, CATEGORIES } from '../lib/constants'
 import { getWeekDates, fmtDay, dk, getMonthDates, fmtMonth } from '../lib/dateUtils'
 import { s } from '../lib/styles'
 
-export default function BookingPage({ user }) {
+export default function BookingPage({ user, isAdmin = false }) {
   const [view, setView] = useState('cal')
   const [crew, setCrew] = useState([])
   const [bookings, setBookings] = useState({})
@@ -278,7 +278,7 @@ export default function BookingPage({ user }) {
     if (nameInput.trim() !== c.name) return true
     if (bioInput !== (c.bio || '')) return true
     const parsedRate = parseInt(rateInput, 10)
-    if (!Number.isNaN(parsedRate) && parsedRate !== c.rate) return true
+    if (isAdmin && !Number.isNaN(parsedRate) && parsedRate !== c.rate) return true
     if (categoryInput !== (c.category || '')) return true
     if (pendingIsNew !== null && pendingIsNew !== !!c.is_new) return true
     if (notesInput !== (c.notes || '')) return true
@@ -345,7 +345,7 @@ export default function BookingPage({ user }) {
       updates.initials = trimmedName.split(/\s+/).map(p => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()
     }
     if (bioInput !== (c.bio || '')) updates.bio = bioInput
-    if (parsedRate !== c.rate) updates.rate = parsedRate
+    if (isAdmin && parsedRate !== c.rate) updates.rate = parsedRate
     if (categoryInput !== (c.category || '')) updates.category = categoryInput
     if (pendingIsNew !== null && pendingIsNew !== !!c.is_new) updates.is_new = pendingIsNew
     if (notesInput !== (c.notes || '')) updates.notes = notesInput
@@ -608,12 +608,12 @@ export default function BookingPage({ user }) {
 
   async function addCrew() {
     const { first, last, rate, jobs, bio, skills: skillsRaw, colorIndex, phone, email, employment_form, category, is_new, birthdate, location, allergy, certificate, has_contract, has_office_key, has_warehouse_intro, has_sweater, has_tshirt } = addForm
-    if (!first || !last || !rate) { setAddError('Fyll ut alle obligatoriske felt.'); return }
+    if (!first || !last || (isAdmin && !rate)) { setAddError('Fyll ut alle obligatoriske felt.'); return }
     setAddError(''); setSaving(true)
     const insertPayload = {
       name: (first.trim() + ' ' + last.trim()),
       initials: (first[0] + last[0]).toUpperCase(),
-      rate: parseInt(rate, 10),
+      rate: parseInt(rate, 10) || 0,
       jobs: parseInt(jobs, 10) || 0,
       bio: bio || '',
       color_index: colorIndex,
@@ -1022,7 +1022,8 @@ export default function BookingPage({ user }) {
                 <div style={s.msec}>
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
                     <div style={s.msecHdr}>Timepris</div>
-                    {!editingRate && <button style={s.editBtn} onClick={() => setEditingRate(true)}>Rediger</button>}
+                    {isAdmin && !editingRate && <button style={s.editBtn} onClick={() => setEditingRate(true)}>Rediger</button>}
+                    {!isAdmin && <span style={{fontSize:11,color:'#aaa'}}>Endres kun av admin</span>}
                   </div>
                   {editingRate ? (
                     <div style={{display:'flex',gap:8,alignItems:'center'}}>
@@ -1193,7 +1194,11 @@ export default function BookingPage({ user }) {
               <div><label style={s.formLabel}>E-post</label><input style={s.formInput} type="email" value={addForm.email} onChange={e => setAddForm(f=>({...f,email:e.target.value}))} placeholder="navn@eksempel.no" /></div>
             </div>
             <div style={s.formRow2}>
-              <div><label style={s.formLabel}>Timelonn (kr) *</label><input style={s.formInput} type="number" value={addForm.rate} onChange={e => setAddForm(f=>({...f,rate:e.target.value}))} placeholder="600" /></div>
+              {isAdmin ? (
+                <div><label style={s.formLabel}>Timelønn (kr) *</label><input style={s.formInput} type="number" value={addForm.rate} onChange={e => setAddForm(f=>({...f,rate:e.target.value}))} placeholder="600" /></div>
+              ) : (
+                <div><label style={s.formLabel}>Timelønn (kr)</label><div style={{...s.formInput,color:'#aaa',background:'#f5f4f0'}}>Settes av admin</div></div>
+              )}
               <div><label style={s.formLabel}>Lønnform</label>
                 <select style={s.formInput} value={addForm.employment_form} onChange={e => setAddForm(f=>({...f,employment_form:e.target.value}))}>
                   <option value="">— Velg —</option>

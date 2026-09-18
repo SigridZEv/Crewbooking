@@ -5,9 +5,9 @@ import BookingPage from './pages/BookingPage'
 import CrewPage from './pages/CrewPage'
 import NoAccess from './pages/NoAccess'
 
-// Hvem er admin? Speiler regelen i databasen (handle_new_user i schema.sql).
-// Brukes bare som reserve hvis profilen ikke er lastet enda — selve
-// tilgangen håndheves alltid av databasen (RLS), ikke av denne sjekken.
+// Reserve hvis profilen ikke finnes enda: @zevent.no behandles som prosjektleder.
+// Selve tilgangen (og hvem som er admin) håndheves alltid av databasen (RLS),
+// ikke av denne sjekken — se role_for_email i schema.sql.
 function isZeventEmail(email) {
   return (email || '').toLowerCase().endsWith('@zevent.no')
 }
@@ -15,7 +15,7 @@ function isZeventEmail(email) {
 export default function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
-  // access: null = ikke lastet, 'admin', 'crew' (koblet), 'none' (ingen kobling)
+  // access: null = ikke lastet, 'admin', 'pl' (prosjektleder), 'crew' (koblet), 'none' (ingen kobling)
   const [access, setAccess] = useState(null)
   const [myCrew, setMyCrew] = useState(null)
 
@@ -40,9 +40,9 @@ export default function App() {
     async function resolveAccess() {
       const user = session.user
       const { data: profile } = await supabase.from('user_profiles').select('role').eq('id', user.id).maybeSingle()
-      const role = profile?.role || (isZeventEmail(user.email) ? 'admin' : 'crew')
+      const role = profile?.role || (isZeventEmail(user.email) ? 'pl' : 'crew')
       if (cancelled) return
-      if (role === 'admin') { setAccess('admin'); return }
+      if (role === 'admin' || role === 'pl') { setAccess(role); return }
       // Crew: finn egen rad (RLS gjør at bare egen rad er synlig)
       const { data: crewRow } = await supabase.from('crew').select('*, skills(*)').eq('user_id', user.id).maybeSingle()
       if (cancelled) return
@@ -62,7 +62,7 @@ export default function App() {
   }
 
   if (!session) return <Login />
-  if (access === 'admin') return <BookingPage user={session.user} />
+  if (access === 'admin' || access === 'pl') return <BookingPage user={session.user} isAdmin={access === 'admin'} />
   if (access === 'crew') return <CrewPage user={session.user} initialCrew={myCrew} />
   return <NoAccess user={session.user} />
 }

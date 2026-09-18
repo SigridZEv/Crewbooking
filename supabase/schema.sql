@@ -100,18 +100,33 @@ create table if not exists crew_comments (
 -- Roller: admin (@zevent.no) og crew (egen innlogging)
 -- ============================================================
 -- user_profiles.role styrer hva en innlogget bruker får se.
---   admin = Z Event-ansatte (@zevent.no) — full tilgang
+--   admin = full tilgang, inkl. timepris og roller (kun ADMIN_EMAILS under)
+--   pl    = prosjektleder (@zevent.no) — alt unntatt å endre timepris
 --   crew  = crew-medlem — ser bare egne bookinger og egen profil
 alter table user_profiles add column if not exists role text default 'crew';
 alter table user_profiles drop constraint if exists user_profiles_role_check;
-alter table user_profiles add constraint user_profiles_role_check check (role in ('admin','crew'));
+alter table user_profiles add constraint user_profiles_role_check check (role in ('admin','pl','crew'));
+
+-- Hvem som er admin. Legg til / fjern e-poster her og kjør skjemaet på nytt.
+create or replace function role_for_email(p_email text)
+returns text
+language sql
+immutable
+as $$
+  select case
+    when lower(p_email) in ('martine.ingeberg@zevent.no', 'sigrid@zevent.no') then 'admin'
+    when lower(p_email) like '%@zevent.no' then 'pl'
+    else 'crew'
+  end;
+$$;
 
 -- crew.user_id kobler en crew-person til sin innloggingskonto.
 alter table crew add column if not exists user_id uuid references auth.users(id) on delete set null;
 create unique index if not exists crew_user_id_unique on crew(user_id) where user_id is not null;
 
--- Hjelpefunksjon: er innlogget bruker admin?
--- security definer så den kan leses uavhengig av RLS på user_profiles.
+-- Hjelpefunksjoner (security definer så de kan leses uavhengig av RLS).
+-- is_admin  = kun admin (timepris, roller)
+-- is_staff  = admin eller prosjektleder (alt annet i portalen)
 create or replace function is_admin()
 returns boolean
 language sql
@@ -121,6 +136,19 @@ set search_path = public
 as $$
   select coalesce(
     (select role = 'admin' from user_profiles where id = auth.uid()),
+    false
+  );
+$$;
+
+create or replace function is_staff()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    (select role in ('admin','pl') from user_profiles where id = auth.uid()),
     false
   );
 $$;
@@ -148,7 +176,7 @@ as $$
 declare
   new_role text;
 begin
-  new_role := case when lower(new.email) like '%@zevent.no' then 'admin' else 'crew' end;
+  new_role := role_for_email(new.email);
 
   insert into user_profiles (id, email, role)
   values (new.id, coalesce(new.email, ''), new_role)
@@ -204,7 +232,7 @@ returns trigger
 language plpgsql
 as $$
 begin
-  if auth.uid() is not null and auth.uid() = old.user_id and not is_admin() then
+  if auth.uid() is not null and auth.uid() = old.user_id and not is_staff() then
     new.name := old.name;
     new.initials := old.initials;
     new.rate := old.rate;
@@ -233,19 +261,41 @@ create trigger on_crew_self_update
   before update on crew
   for each row execute function restrict_crew_self_update();
 
+-- Kun admin kan sette/endre timepris. Prosjektledere (og crew) får ikke røre den.
+-- SQL Editor / dashbord (auth.uid() er null) er ikke berørt.
+create or replace function protect_crew_rate()
+returns trigger
+language plpgsql
+as $$
+begin
+  if auth.uid() is not null and not is_admin() then
+    if tg_op = 'UPDATE' then
+      new.rate := old.rate;
+    else
+      new.rate := 0;
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_crew_rate_change on crew;
+create trigger on_crew_rate_change
+  before insert or update on crew
+  for each row execute function protect_crew_rate();
+
 -- Backfill for eksisterende brukere (trygt å kjøre flere ganger)
 insert into user_profiles (id, email, role)
-select u.id, coalesce(u.email, ''),
-       case when lower(u.email) like '%@zevent.no' then 'admin' else 'crew' end
+select u.id, coalesce(u.email, ''), role_for_email(u.email)
   from auth.users u
  where not exists (select 1 from user_profiles p where p.id = u.id);
 
+-- Sett riktig rolle på alle eksisterende brukere ut fra e-post
 update user_profiles p
-   set role = 'admin'
+   set role = role_for_email(u.email)
   from auth.users u
  where u.id = p.id
-   and lower(u.email) like '%@zevent.no'
-   and p.role <> 'admin';
+   and p.role <> role_for_email(u.email);
 
 update crew c
    set user_id = u.id
@@ -302,7 +352,7 @@ drop policy if exists "author_delete_comments" on crew_comments;
 
 -- ---- crew ----
 create policy "admin_all_crew" on crew
-  for all using (is_admin()) with check (is_admin());
+  for all using (is_staff()) with check (is_staff());
 
 create policy "crew_read_self" on crew
   for select using (user_id = auth.uid());
@@ -313,7 +363,7 @@ create policy "crew_update_self" on crew
 
 -- ---- skills ----
 create policy "admin_all_skills" on skills
-  for all using (is_admin()) with check (is_admin());
+  for all using (is_staff()) with check (is_staff());
 
 -- Crew ser egne ferdigheter og allergi, men ikke sertifikat-/interne rader
 create policy "crew_read_own_skills" on skills
@@ -332,7 +382,7 @@ create policy "crew_delete_own_allergy" on skills
 
 -- ---- bookings ----
 create policy "admin_all_bookings" on bookings
-  for all using (is_admin()) with check (is_admin());
+  for all using (is_staff()) with check (is_staff());
 
 create policy "crew_read_own_bookings" on bookings
   for select using (crew_id = my_crew_id());
@@ -351,7 +401,7 @@ create policy "crew_delete_own_unavailable" on bookings
 
 -- ---- user_profiles ----
 create policy "admin_read_profiles" on user_profiles
-  for select using (is_admin());
+  for select using (is_staff());
 
 create policy "user_read_own_profile" on user_profiles
   for select using (auth.uid() = id);
@@ -363,13 +413,14 @@ create policy "user_insert_own_profile" on user_profiles
 create policy "user_update_own_profile" on user_profiles
   for update using (auth.uid() = id) with check (auth.uid() = id);
 
--- Ingen kan endre sin egen rolle — kun admin kan endre roller
+-- Ingen kan endre sin egen rolle — kun admin kan endre roller.
+-- SQL Editor / dashbord (auth.uid() er null) er ikke berørt.
 create or replace function protect_profile_role()
 returns trigger
 language plpgsql
 as $$
 begin
-  if new.role <> old.role and not is_admin() then
+  if auth.uid() is not null and new.role <> old.role and not is_admin() then
     new.role := old.role;
   end if;
   return new;
@@ -383,13 +434,13 @@ create trigger on_profile_role_change
 
 -- ---- crew_comments: kun admin, og bare forfatter kan slette ----
 create policy "admin_read_comments" on crew_comments
-  for select using (is_admin());
+  for select using (is_staff());
 
 create policy "admin_insert_comments" on crew_comments
-  for insert with check (is_admin() and author_id = auth.uid());
+  for insert with check (is_staff() and author_id = auth.uid());
 
 create policy "author_delete_comments" on crew_comments
-  for delete using (is_admin() and author_id = auth.uid());
+  for delete using (is_staff() and author_id = auth.uid());
 
 -- ============================================================
 -- Eksempeldata (valgfritt — slett hvis du vil starte tomt)
