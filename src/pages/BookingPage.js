@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { COLORS, ALLERGIES, STATUS, CATEGORIES } from '../lib/constants'
 import { getWeekDates, fmtDay, dk, getMonthDates, fmtMonth } from '../lib/dateUtils'
 import { s } from '../lib/styles'
+import ProjectsView, { projectLabel } from './ProjectsView'
 
 export default function BookingPage({ user, isAdmin = false }) {
   const [view, setView] = useState('cal')
@@ -38,6 +39,11 @@ export default function BookingPage({ user, isAdmin = false }) {
   const [pendingStatus, setPendingStatus] = useState(null)
   const [projectInput, setProjectInput] = useState('')
   const [bookedByInput, setBookedByInput] = useState('')
+  // Prosjekter (felles liste — hentes fra Qondor senere)
+  const [projects, setProjects] = useState([])
+  const [selectedProjectId, setSelectedProjectId] = useState('')
+  const [newProjectOpen, setNewProjectOpen] = useState(false)
+  const [newProject, setNewProject] = useState({ project_number: '', name: '', client: '', start_date: '', end_date: '' })
   // Profile editing
   const [editingRate, setEditingRate] = useState(false)
   const [rateInput, setRateInput] = useState('')
@@ -94,7 +100,13 @@ export default function BookingPage({ user, isAdmin = false }) {
     }
   }, [weekOffset, monthOffset, calMode])
 
+  const loadProjects = useCallback(async () => {
+    const { data } = await supabase.from('projects').select('*').order('start_date', { ascending: false, nullsFirst: false }).order('name')
+    if (data) setProjects(data)
+  }, [])
+
   useEffect(() => { loadCrew() }, [loadCrew])
+  useEffect(() => { loadProjects() }, [loadProjects])
   useEffect(() => {
     async function loadProfile() {
       const { data: { user } } = await supabase.auth.getUser()
@@ -122,8 +134,41 @@ export default function BookingPage({ user, isAdmin = false }) {
   function openChange(c, date, dateLabel) {
     setChangeTarget({ crew: c, date, dateLabel })
     setPendingStatus(null)
-    setProjectInput('')
-    setBookedByInput('')
+    // Forhåndsutfyll fra eksisterende booking på dagen, hvis det finnes en
+    const existing = getBooking(c.id, date)
+    setProjectInput(existing?.project || '')
+    setSelectedProjectId(existing?.project_id || '')
+    setBookedByInput(existing?.booked_by || userName || '')
+    setNewProjectOpen(false)
+    setNewProject({ project_number: '', name: '', client: '', start_date: date, end_date: date })
+  }
+
+  // Velg prosjekt fra listen → fyll tekstfeltet med navnet (for visning i kalenderen)
+  function pickProject(id) {
+    setSelectedProjectId(id)
+    const p = projects.find(x => x.id === id)
+    if (p) setProjectInput(projectLabel(p))
+  }
+
+  async function createProjectInline() {
+    if (!newProject.name.trim()) return
+    setSaving(true)
+    const { data, error } = await supabase.from('projects').insert({
+      project_number: newProject.project_number.trim(),
+      name: newProject.name.trim(),
+      client: newProject.client.trim(),
+      start_date: newProject.start_date || null,
+      end_date: newProject.end_date || newProject.start_date || null,
+      project_leader: userName || '',
+      color_index: projects.length % COLORS.length,
+      created_by: userId,
+    }).select().single()
+    setSaving(false)
+    if (error || !data) { showToast('Kunne ikke opprette prosjekt'); return }
+    setProjects(prev => [data, ...prev])
+    pickProject(data.id)
+    setNewProjectOpen(false)
+    showToast('Prosjekt opprettet')
   }
 
   function openProfile(c) {
@@ -585,7 +630,7 @@ export default function BookingPage({ user, isAdmin = false }) {
     if (!changeTarget || !pendingStatus) return
     const { crew: c, date } = changeTarget
     setSaving(true)
-    const payload = { crew_id: c.id, date, status: pendingStatus, project: projectInput.trim(), booked_by: bookedByInput.trim() }
+    const payload = { crew_id: c.id, date, status: pendingStatus, project: projectInput.trim(), project_id: selectedProjectId || null, booked_by: bookedByInput.trim() }
     await supabase.from('bookings').upsert(payload, { onConflict: 'crew_id,date' })
     setBookings(prev => ({ ...prev, [c.id + '_' + date]: payload }))
     setChangeTarget(null)
@@ -598,7 +643,7 @@ export default function BookingPage({ user, isAdmin = false }) {
     if (!changeTarget) return
     const { crew: c, date } = changeTarget
     setSaving(true)
-    const payload = { crew_id: c.id, date, status, project: '', booked_by: '' }
+    const payload = { crew_id: c.id, date, status, project: '', project_id: null, booked_by: '' }
     await supabase.from('bookings').upsert(payload, { onConflict: 'crew_id,date' })
     setBookings(prev => ({ ...prev, [c.id + '_' + date]: payload }))
     setChangeTarget(null)
@@ -712,6 +757,7 @@ export default function BookingPage({ user, isAdmin = false }) {
           <div style={s.tabs}>
             <button style={{...s.tab, ...(view==='cal'?s.tabActive:{})}} onClick={() => setView('cal')}>Kalender</button>
             <button style={{...s.tab, ...(view==='crew'?s.tabActive:{})}} onClick={() => setView('crew')}>Crew</button>
+            <button style={{...s.tab, ...(view==='projects'?s.tabActive:{})}} onClick={() => setView('projects')}>Prosjekter</button>
           </div>
           <div style={{position:'relative'}} onMouseEnter={() => setShowUserMenu(true)} onMouseLeave={() => setShowUserMenu(false)}>
             <button style={s.logoutBtn}>👤 {userName || 'Min konto'}</button>
@@ -868,6 +914,19 @@ export default function BookingPage({ user, isAdmin = false }) {
             })}
           </div>
         </div>
+      )}
+
+      {view === 'projects' && (
+        <ProjectsView
+          projects={projects}
+          crew={crew}
+          onProjectsChanged={loadProjects}
+          onBookingsChanged={loadBookings}
+          openProfile={openProfile}
+          showToast={showToast}
+          userName={userName}
+          userId={userId}
+        />
       )}
 
       {/* Profile modal */}
@@ -1167,7 +1226,30 @@ export default function BookingPage({ user, isAdmin = false }) {
             </> : <>
               <div style={{fontSize:13,color:'#888',marginBottom:12}}>{STATUS[pendingStatus].full} - fyll inn detaljer</div>
               <label style={s.formLabel}>Prosjekt / arrangement</label>
-              <input style={{...s.formInput,marginBottom:10}} value={projectInput} onChange={e => setProjectInput(e.target.value)} placeholder="f.eks. Telenor konferanse" autoFocus />
+              <select style={{...s.formInput,marginBottom:6}} value={selectedProjectId} onChange={e => { if (e.target.value === '__new') { setNewProjectOpen(true); return } pickProject(e.target.value) }}>
+                <option value="">— Velg prosjekt —</option>
+                {projects.map(p => <option key={p.id} value={p.id}>{projectLabel(p)}</option>)}
+                <option value="__new">+ Nytt prosjekt…</option>
+              </select>
+              {newProjectOpen && (
+                <div style={{background:'#F5F4F0',borderRadius:8,padding:10,marginBottom:8}}>
+                  <div style={{fontSize:12,fontWeight:700,color:'#1B3A78',marginBottom:6}}>Nytt prosjekt</div>
+                  <div style={{display:'grid',gridTemplateColumns:'90px 1fr',gap:6,marginBottom:6}}>
+                    <input style={s.formInput} value={newProject.project_number} onChange={e => setNewProject(f=>({...f,project_number:e.target.value}))} placeholder="Qondor-nr" />
+                    <input style={s.formInput} value={newProject.name} onChange={e => setNewProject(f=>({...f,name:e.target.value}))} placeholder="Prosjektnavn *" autoFocus />
+                  </div>
+                  <input style={{...s.formInput,marginBottom:6}} value={newProject.client} onChange={e => setNewProject(f=>({...f,client:e.target.value}))} placeholder="Kunde" />
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:8}}>
+                    <div><label style={s.formLabel}>Fra</label><input style={s.formInput} type="date" value={newProject.start_date} onChange={e => setNewProject(f=>({...f,start_date:e.target.value}))} /></div>
+                    <div><label style={s.formLabel}>Til</label><input style={s.formInput} type="date" value={newProject.end_date} onChange={e => setNewProject(f=>({...f,end_date:e.target.value}))} /></div>
+                  </div>
+                  <div style={{display:'flex',gap:6}}>
+                    <button style={{...s.miniBtn,background:'#1B3A78',color:'#fff',border:'none'}} onClick={createProjectInline} disabled={saving || !newProject.name.trim()}>Opprett og velg</button>
+                    <button style={s.clearBtn} onClick={() => setNewProjectOpen(false)}>Avbryt</button>
+                  </div>
+                </div>
+              )}
+              <input style={{...s.formInput,marginBottom:10}} value={projectInput} onChange={e => { setProjectInput(e.target.value); setSelectedProjectId('') }} placeholder="…eller skriv fritt" />
               <label style={s.formLabel}>Booket av</label>
               <input style={{...s.formInput,marginBottom:16}} value={bookedByInput} onChange={e => setBookedByInput(e.target.value)} placeholder="Ditt navn" />
               <div style={{display:'flex',gap:8}}>
