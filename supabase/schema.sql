@@ -97,6 +97,166 @@ create table if not exists crew_comments (
 );
 
 -- ============================================================
+-- Roller: admin (@zevent.no) og crew (egen innlogging)
+-- ============================================================
+-- user_profiles.role styrer hva en innlogget bruker får se.
+--   admin = Z Event-ansatte (@zevent.no) — full tilgang
+--   crew  = crew-medlem — ser bare egne bookinger og egen profil
+alter table user_profiles add column if not exists role text default 'crew';
+alter table user_profiles drop constraint if exists user_profiles_role_check;
+alter table user_profiles add constraint user_profiles_role_check check (role in ('admin','crew'));
+
+-- crew.user_id kobler en crew-person til sin innloggingskonto.
+alter table crew add column if not exists user_id uuid references auth.users(id) on delete set null;
+create unique index if not exists crew_user_id_unique on crew(user_id) where user_id is not null;
+
+-- Hjelpefunksjon: er innlogget bruker admin?
+-- security definer så den kan leses uavhengig av RLS på user_profiles.
+create or replace function is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    (select role = 'admin' from user_profiles where id = auth.uid()),
+    false
+  );
+$$;
+
+-- Hjelpefunksjon: crew-id for innlogget bruker (null hvis ikke koblet)
+create or replace function my_crew_id()
+returns uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select id from crew where user_id = auth.uid() limit 1;
+$$;
+
+-- Når en ny bruker registrerer seg:
+--  1) opprett user_profiles-rad med riktig rolle (admin hvis @zevent.no)
+--  2) koble til crew-rad med samme e-post (hvis den finnes og er ukoblet)
+create or replace function handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  new_role text;
+begin
+  new_role := case when lower(new.email) like '%@zevent.no' then 'admin' else 'crew' end;
+
+  insert into user_profiles (id, email, role)
+  values (new.id, coalesce(new.email, ''), new_role)
+  on conflict (id) do update set role = excluded.role;
+
+  if new_role = 'crew' then
+    update crew
+       set user_id = new.id
+     where user_id is null
+       and lower(trim(email)) = lower(new.email);
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function handle_new_user();
+
+-- Når en admin legger inn/endrer e-post på en crew-person, koble automatisk
+-- hvis det allerede finnes en konto med den e-posten.
+create or replace function link_crew_to_existing_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.user_id is null and new.email is not null and new.email <> '' then
+    select u.id into new.user_id
+      from auth.users u
+      left join crew c on c.user_id = u.id
+     where lower(u.email) = lower(trim(new.email))
+       and c.id is null
+     limit 1;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_crew_email_set on crew;
+create trigger on_crew_email_set
+  before insert or update of email on crew
+  for each row execute function link_crew_to_existing_user();
+
+-- Crew får kun endre kontaktfelt på egen rad. Alt annet settes tilbake.
+-- Gjelder bare når det er crew-personen selv som lagrer (auth.uid() = egen rad).
+-- Admin, SQL Editor og Supabase-dashbordet er ikke berørt.
+create or replace function restrict_crew_self_update()
+returns trigger
+language plpgsql
+as $$
+begin
+  if auth.uid() is not null and auth.uid() = old.user_id and not is_admin() then
+    new.name := old.name;
+    new.initials := old.initials;
+    new.rate := old.rate;
+    new.color_index := old.color_index;
+    new.bio := old.bio;
+    new.jobs := old.jobs;
+    new.birthdate := old.birthdate;
+    new.notes := old.notes;
+    new.employment_form := old.employment_form;
+    new.category := old.category;
+    new.is_new := old.is_new;
+    new.has_contract := old.has_contract;
+    new.has_office_key := old.has_office_key;
+    new.has_warehouse_intro := old.has_warehouse_intro;
+    new.has_sweater := old.has_sweater;
+    new.has_tshirt := old.has_tshirt;
+    new.user_id := old.user_id;
+    new.created_at := old.created_at;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_crew_self_update on crew;
+create trigger on_crew_self_update
+  before update on crew
+  for each row execute function restrict_crew_self_update();
+
+-- Backfill for eksisterende brukere (trygt å kjøre flere ganger)
+insert into user_profiles (id, email, role)
+select u.id, coalesce(u.email, ''),
+       case when lower(u.email) like '%@zevent.no' then 'admin' else 'crew' end
+  from auth.users u
+ where not exists (select 1 from user_profiles p where p.id = u.id);
+
+update user_profiles p
+   set role = 'admin'
+  from auth.users u
+ where u.id = p.id
+   and lower(u.email) like '%@zevent.no'
+   and p.role <> 'admin';
+
+update crew c
+   set user_id = u.id
+  from auth.users u
+ where c.user_id is null
+   and c.email <> ''
+   and lower(trim(c.email)) = lower(u.email)
+   and lower(u.email) not like '%@zevent.no'
+   and not exists (select 1 from crew c2 where c2.user_id = u.id);
+
+-- ============================================================
 -- Row Level Security
 -- ============================================================
 alter table crew enable row level security;
@@ -105,7 +265,7 @@ alter table bookings enable row level security;
 alter table user_profiles enable row level security;
 alter table crew_comments enable row level security;
 
--- Drop + recreate policies for å være idempotent
+-- Fjern gamle policies (både gamle og nye navn) for å være idempotent
 drop policy if exists "Innloggede brukere kan lese crew" on crew;
 drop policy if exists "Innloggede brukere kan endre crew" on crew;
 drop policy if exists "Innloggede brukere kan lese skills" on skills;
@@ -118,46 +278,127 @@ drop policy if exists "Innloggede brukere kan lese kommentarer" on crew_comments
 drop policy if exists "Innloggede brukere kan skrive kommentarer" on crew_comments;
 drop policy if exists "Forfatter kan slette egen kommentar" on crew_comments;
 
-create policy "Innloggede brukere kan lese crew" on crew
-  for select using (auth.role() = 'authenticated');
+drop policy if exists "admin_all_crew" on crew;
+drop policy if exists "crew_read_self" on crew;
+drop policy if exists "crew_update_self" on crew;
+drop policy if exists "admin_all_skills" on skills;
+drop policy if exists "crew_read_own_skills" on skills;
+drop policy if exists "crew_insert_own_allergy" on skills;
+drop policy if exists "crew_update_own_allergy" on skills;
+drop policy if exists "crew_delete_own_allergy" on skills;
+drop policy if exists "admin_all_bookings" on bookings;
+drop policy if exists "crew_read_own_bookings" on bookings;
+drop policy if exists "crew_insert_own_unavailable" on bookings;
+drop policy if exists "crew_update_own_unavailable" on bookings;
+drop policy if exists "crew_delete_own_unavailable" on bookings;
+drop policy if exists "admin_read_profiles" on user_profiles;
+drop policy if exists "user_read_own_profile" on user_profiles;
+drop policy if exists "user_update_own_profile" on user_profiles;
+drop policy if exists "user_insert_own_profile" on user_profiles;
+drop policy if exists "admin_all_comments" on crew_comments;
+drop policy if exists "admin_read_comments" on crew_comments;
+drop policy if exists "admin_insert_comments" on crew_comments;
+drop policy if exists "author_delete_comments" on crew_comments;
 
-create policy "Innloggede brukere kan endre crew" on crew
-  for all using (auth.role() = 'authenticated');
+-- ---- crew ----
+create policy "admin_all_crew" on crew
+  for all using (is_admin()) with check (is_admin());
 
-create policy "Innloggede brukere kan lese skills" on skills
-  for select using (auth.role() = 'authenticated');
+create policy "crew_read_self" on crew
+  for select using (user_id = auth.uid());
 
-create policy "Innloggede brukere kan endre skills" on skills
-  for all using (auth.role() = 'authenticated');
+-- (kolonner begrenses av trigger restrict_crew_self_update)
+create policy "crew_update_self" on crew
+  for update using (user_id = auth.uid()) with check (user_id = auth.uid());
 
-create policy "Innloggede brukere kan lese bookings" on bookings
-  for select using (auth.role() = 'authenticated');
+-- ---- skills ----
+create policy "admin_all_skills" on skills
+  for all using (is_admin()) with check (is_admin());
 
-create policy "Innloggede brukere kan endre bookings" on bookings
-  for all using (auth.role() = 'authenticated');
+-- Crew ser egne ferdigheter og allergi, men ikke sertifikat-/interne rader
+create policy "crew_read_own_skills" on skills
+  for select using (crew_id = my_crew_id());
 
--- user_profiles: alle innloggede kan lese, men kun eier kan endre sin
-create policy "Innloggede brukere kan lese profiles" on user_profiles
-  for select using (auth.role() = 'authenticated');
+-- Crew kan kun legge til / endre / slette sin egen allergi-rad
+create policy "crew_insert_own_allergy" on skills
+  for insert with check (crew_id = my_crew_id() and name like 'Allergi:%');
 
-create policy "Brukere kan endre egen profil" on user_profiles
-  for all using (auth.uid() = id);
+create policy "crew_update_own_allergy" on skills
+  for update using (crew_id = my_crew_id() and name like 'Allergi:%')
+  with check (crew_id = my_crew_id() and name like 'Allergi:%');
 
--- crew_comments: alle innloggede kan lese og skrive, men kun forfatter kan slette
-create policy "Innloggede brukere kan lese kommentarer" on crew_comments
-  for select using (auth.role() = 'authenticated');
+create policy "crew_delete_own_allergy" on skills
+  for delete using (crew_id = my_crew_id() and name like 'Allergi:%');
 
-create policy "Innloggede brukere kan skrive kommentarer" on crew_comments
-  for insert with check (auth.role() = 'authenticated');
+-- ---- bookings ----
+create policy "admin_all_bookings" on bookings
+  for all using (is_admin()) with check (is_admin());
 
-create policy "Forfatter kan slette egen kommentar" on crew_comments
-  for delete using (auth.uid() = author_id);
+create policy "crew_read_own_bookings" on bookings
+  for select using (crew_id = my_crew_id());
+
+-- Crew kan markere seg "Ikke tilgjengelig" på ledige dager, og angre det.
+-- De kan aldri røre dager som er Booket eller Forespurt.
+create policy "crew_insert_own_unavailable" on bookings
+  for insert with check (crew_id = my_crew_id() and status = 'unavailable');
+
+create policy "crew_update_own_unavailable" on bookings
+  for update using (crew_id = my_crew_id() and status in ('free','unavailable'))
+  with check (crew_id = my_crew_id() and status in ('free','unavailable'));
+
+create policy "crew_delete_own_unavailable" on bookings
+  for delete using (crew_id = my_crew_id() and status in ('free','unavailable'));
+
+-- ---- user_profiles ----
+create policy "admin_read_profiles" on user_profiles
+  for select using (is_admin());
+
+create policy "user_read_own_profile" on user_profiles
+  for select using (auth.uid() = id);
+
+create policy "user_insert_own_profile" on user_profiles
+  for insert with check (auth.uid() = id);
+
+-- Egen profil kan endres (rollen beskyttes av trigger under)
+create policy "user_update_own_profile" on user_profiles
+  for update using (auth.uid() = id) with check (auth.uid() = id);
+
+-- Ingen kan endre sin egen rolle — kun admin kan endre roller
+create or replace function protect_profile_role()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.role <> old.role and not is_admin() then
+    new.role := old.role;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_profile_role_change on user_profiles;
+create trigger on_profile_role_change
+  before update on user_profiles
+  for each row execute function protect_profile_role();
+
+-- ---- crew_comments: kun admin, og bare forfatter kan slette ----
+create policy "admin_read_comments" on crew_comments
+  for select using (is_admin());
+
+create policy "admin_insert_comments" on crew_comments
+  for insert with check (is_admin() and author_id = auth.uid());
+
+create policy "author_delete_comments" on crew_comments
+  for delete using (is_admin() and author_id = auth.uid());
 
 -- ============================================================
 -- Eksempeldata (valgfritt — slett hvis du vil starte tomt)
 -- ============================================================
-insert into crew (name, initials, rate, color_index, bio, jobs) values
+-- Legges kun inn hvis crew-tabellen er helt tom (unngår duplikater ved ny kjøring)
+insert into crew (name, initials, rate, color_index, bio, jobs)
+select * from (values
   ('Sara Haugen',  'SH', 650, 0, '10 år erfaring innen TV-produksjon og reklame.', 47),
   ('Magnus Lie',   'ML', 580, 1, 'Lydtekniker med bakgrunn fra musikkindustrien.', 61),
   ('Thea Bakke',   'TB', 620, 2, 'Kreativ lysdesigner med erfaring fra store festivaler.', 38)
-on conflict do nothing;
+) as v(name, initials, rate, color_index, bio, jobs)
+where not exists (select 1 from crew);
