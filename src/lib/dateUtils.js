@@ -20,9 +20,14 @@ export function fmtDay(d) {
   return d.toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
-// Format a Date as an ISO date string (YYYY-MM-DD) for database queries
+// Format a Date as an ISO date string (YYYY-MM-DD) for database queries.
+// Uses the LOCAL date — toISOString() would convert to UTC first, and since
+// Norway is ahead of UTC, local midnight would become the previous day.
 export function dk(d) {
-  return d.toISOString().slice(0, 10)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 // Returns all dates of a calendar month, offset by `offset` months from today.

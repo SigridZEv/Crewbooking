@@ -78,3 +78,27 @@ Noe som ikke fungerer? Vanlige problemer:
 - **Blank side**: Sjekk at `.env.local` har riktige verdier og at du restartet appen
 - **"Invalid API key"**: Kopier anon-nøkkelen på nytt fra Supabase — ikke service_role-nøkkelen
 - **Kan ikke logge inn**: Gå til Supabase → Authentication → Users og se om brukeren finnes
+
+---
+
+## Roller og crew-innlogging (lagt til september 2026)
+
+Portalen har to typer brukere:
+
+| Rolle | Hvem | Hva de ser |
+|---|---|---|
+| **Admin** | Alle med @zevent.no-adresse | Alt: kalender, crew, profiler, booking |
+| **Crew** | Alle andre | Kun egen side: «Mine jobber», «Min tilgjengelighet», «Mine opplysninger» |
+
+**Slik får et crew-medlem tilgang:**
+1. Legg inn e-postadressen deres på profilen i portalen (feltet *E-post*).
+2. Be dem gå til portalen og trykke **Opprett konto** med samme e-post.
+3. Kontoen kobles automatisk. Rekkefølgen spiller ingen rolle — det virker også om de lager konto først.
+
+Tilgangen håndheves i databasen (Row Level Security), ikke bare i skjermbildet:
+crew kan bare hente egne data, kan bare endre telefon/e-post/bosted/allergi,
+og kan kun sette seg selv «Ikke tilgjengelig» på ledige dager.
+
+**Etter oppdatering av koden:** kjør `supabase/schema.sql` på nytt i SQL Editor
+(trygt), og les `supabase/migrations/2026-09-18_fix-booking-dates.sql` — den
+flytter gamle bookinger én dag frem etter en datofeil, og skal kjøres kun én gang.

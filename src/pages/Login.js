@@ -44,8 +44,10 @@ export default function Login() {
           <img src="/Z_logo.png" alt="Z Event" style={{ width: 80, height: 80, objectFit: 'contain', margin: '0 auto 16px', display: 'block' }} />
           <div style={{ fontSize: 11, fontWeight: 700, color: '#1B3A78', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 6 }}>Z Event</div>
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: '0 0 6px', color: '#1A1B2E', letterSpacing: '-0.02em' }}>Crew Portal</h1>
-          <p style={{ fontSize: 14, color: '#6B7280', margin: 0 }}>
-            {mode === 'login' ? 'Logg inn med din Z Event-konto' : 'Opprett konto'}
+          <p style={{ fontSize: 14, color: '#6B7280', margin: 0, lineHeight: 1.5 }}>
+            {mode === 'login'
+              ? 'Logg inn med e-post og passord'
+              : 'Bruk e-postadressen Z Event har registrert på deg, så kobles kontoen automatisk til profilen din.'}
           </p>
         </div>
 
@@ -59,7 +61,7 @@ export default function Login() {
               fontFamily: "'Avenir', 'Avenir Next', 'Century Gothic', 'Nunito', sans-serif", boxSizing: 'border-box', marginBottom: 16, outline: 'none',
             }}
             type="email" value={email} onChange={e => setEmail(e.target.value)}
-            placeholder="navn@zevent.no" required
+            placeholder={mode === 'login' ? 'navn@zevent.no' : 'din@epost.no'} required
           />
           <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#6B7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Passord</label>
           <input
