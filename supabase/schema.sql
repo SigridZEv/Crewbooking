@@ -73,6 +73,41 @@ alter table bookings add column if not exists project text default '';
 alter table bookings add column if not exists booked_by text default '';
 
 -- ------------------------------------------------------------
+-- Prosjekter
+-- Kilden skal etter hvert være Qondor (prosjektnummer + prosjektleder
+-- hentes derfra). Inntil da legges de inn manuelt i portalen.
+-- ------------------------------------------------------------
+create table if not exists projects (
+  id uuid primary key default gen_random_uuid(),
+  project_number text default '',          -- Qondor-prosjektnummer
+  name text not null,
+  client text default '',
+  start_date date,
+  end_date date,
+  project_leader text default '',          -- navn på PL (fra Qondor senere)
+  color_index integer default 0,
+  qondor_id text default '',               -- teknisk id i Qondor (for synk)
+  notes text default '',
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+alter table projects add column if not exists client text default '';
+alter table projects add column if not exists start_date date;
+alter table projects add column if not exists end_date date;
+alter table projects add column if not exists project_leader text default '';
+alter table projects add column if not exists color_index integer default 0;
+alter table projects add column if not exists qondor_id text default '';
+alter table projects add column if not exists notes text default '';
+alter table projects add column if not exists updated_at timestamptz default now();
+create unique index if not exists projects_qondor_id_unique on projects(qondor_id) where qondor_id <> '';
+
+-- Bookinger kobles til prosjekt. Fritekstfeltet 'project' beholdes for
+-- visning og for gamle bookinger uten kobling.
+alter table bookings add column if not exists project_id uuid references projects(id) on delete set null;
+create index if not exists bookings_project_id_idx on bookings(project_id);
+
+-- ------------------------------------------------------------
 -- Brukerprofiler (innloggede brukere — separat fra crew)
 -- ------------------------------------------------------------
 create table if not exists user_profiles (
@@ -314,6 +349,7 @@ alter table skills enable row level security;
 alter table bookings enable row level security;
 alter table user_profiles enable row level security;
 alter table crew_comments enable row level security;
+alter table projects enable row level security;
 
 -- Fjern gamle policies (både gamle og nye navn) for å være idempotent
 drop policy if exists "Innloggede brukere kan lese crew" on crew;
@@ -349,6 +385,9 @@ drop policy if exists "admin_all_comments" on crew_comments;
 drop policy if exists "admin_read_comments" on crew_comments;
 drop policy if exists "admin_insert_comments" on crew_comments;
 drop policy if exists "author_delete_comments" on crew_comments;
+drop policy if exists "Innloggede kan lese prosjekter" on projects;
+drop policy if exists "Eier kan endre egne prosjekter" on projects;
+drop policy if exists "staff_all_projects" on projects;
 
 -- ---- crew ----
 create policy "admin_all_crew" on crew
@@ -441,6 +480,10 @@ create policy "admin_insert_comments" on crew_comments
 
 create policy "author_delete_comments" on crew_comments
   for delete using (is_staff() and author_id = auth.uid());
+
+-- ---- projects: alle prosjektledere/admin kan lese og endre ----
+create policy "staff_all_projects" on projects
+  for all using (is_staff()) with check (is_staff());
 
 -- ============================================================
 -- Eksempeldata (valgfritt — slett hvis du vil starte tomt)
