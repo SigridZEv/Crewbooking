@@ -413,13 +413,14 @@ create policy "user_insert_own_profile" on user_profiles
 create policy "user_update_own_profile" on user_profiles
   for update using (auth.uid() = id) with check (auth.uid() = id);
 
--- Ingen kan endre sin egen rolle — kun admin kan endre roller
+-- Ingen kan endre sin egen rolle — kun admin kan endre roller.
+-- SQL Editor / dashbord (auth.uid() er null) er ikke berørt.
 create or replace function protect_profile_role()
 returns trigger
 language plpgsql
 as $$
 begin
-  if new.role <> old.role and not is_admin() then
+  if auth.uid() is not null and new.role <> old.role and not is_admin() then
     new.role := old.role;
   end if;
   return new;
