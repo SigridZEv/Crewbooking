@@ -835,7 +835,12 @@ export default function BookingPage({ user, isAdmin = false }) {
                     ...(isWeekend ? s.weekendHeader : {}),
                     ...(isToday ? s.todayHeader : {}),
                     ...(filterDay===dStr ? {background:'#f0f7ff'} : {}),
-                  }}>{calMode === 'month' ? d.getDate() : fmtDay(d)}</th>
+                  }}>{calMode === 'month' ? (
+                    <div style={{display:'flex',flexDirection:'column',alignItems:'center',lineHeight:1.15}}>
+                      <span style={{fontSize:9,textTransform:'uppercase',letterSpacing:'0.02em'}}>{['sø','ma','ti','on','to','fr','lø'][dow]}</span>
+                      <span style={{fontSize:11}}>{d.getDate()}</span>
+                    </div>
+                  ) : fmtDay(d)}</th>
                 })}
               </tr></thead>
               <tbody>
