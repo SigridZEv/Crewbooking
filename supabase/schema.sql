@@ -100,7 +100,14 @@ alter table projects add column if not exists color_index integer default 0;
 alter table projects add column if not exists qondor_id text default '';
 alter table projects add column if not exists notes text default '';
 alter table projects add column if not exists updated_at timestamptz default now();
+alter table projects add column if not exists place text default '';
+alter table projects add column if not exists team text default '';
+alter table projects add column if not exists status text default '';      -- Confirmed / Pending (fra Qondor)
+alter table projects add column if not exists producer text default '';
+alter table projects add column if not exists creative text default '';
+alter table projects add column if not exists source text default 'manual'; -- manual / qondor
 create unique index if not exists projects_qondor_id_unique on projects(qondor_id) where qondor_id <> '';
+create unique index if not exists projects_number_unique on projects(project_number) where project_number <> '';
 
 -- Bookinger kobles til prosjekt. Fritekstfeltet 'project' beholdes for
 -- visning og for gamle bookinger uten kobling.

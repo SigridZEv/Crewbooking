@@ -43,6 +43,8 @@ export default function ProjectsView({ projects, crew, onProjectsChanged, onBook
   const [editForm, setEditForm] = useState(null)
   const [saving, setSaving] = useState(false)
   const [showPast, setShowPast] = useState(true)
+  const [teamFilter, setTeamFilter] = useState('')
+  const [search, setSearch] = useState('')
 
   const days = getMonthDates(monthOffset)
   const monthStart = dk(days[0])
@@ -82,7 +84,7 @@ export default function ProjectsView({ projects, crew, onProjectsChanged, onBook
       }
       if (!start) continue
       if (end < monthStart || start > monthEnd) continue
-      out.push({ key: p.id, project: p, name: projectLabel(p), start, end, count: new Set(bs.map(b => b.crew_id)).size, colorIndex: p.color_index || 0, legacy: false })
+      out.push({ key: p.id, project: p, name: projectLabel(p), start, end, count: new Set(bs.map(b => b.crew_id)).size, colorIndex: p.color_index || 0, legacy: false, pending: (p.status || '').toLowerCase() === 'pending', team: p.team || '' })
     }
     for (const l of Object.values(legacy)) {
       const ds = l.bookings.map(b => b.date).sort()
@@ -92,7 +94,13 @@ export default function ProjectsView({ projects, crew, onProjectsChanged, onBook
     return out
   }, [projects, monthBookings, monthStart, monthEnd])
 
-  const visibleRows = showPast ? rows : rows.filter(r => r.end >= todayStr)
+  const teams = useMemo(() => [...new Set(projects.map(p => p.team).filter(Boolean))].sort(), [projects])
+  const q = search.trim().toLowerCase()
+  const visibleRows = rows.filter(r =>
+    (showPast || r.end >= todayStr) &&
+    (!teamFilter || r.legacy || r.team === teamFilter) &&
+    (!q || r.name.toLowerCase().includes(q) || (r.project?.client || '').toLowerCase().includes(q) || (r.project?.project_leader || '').toLowerCase().includes(q))
+  )
   const selected = rows.find(r => r.key === selectedKey) || null
 
   // Når et prosjekt velges: hent ALLE bookingene dets (også utenfor måneden)
@@ -120,6 +128,7 @@ export default function ProjectsView({ projects, crew, onProjectsChanged, onBook
       project_number: p.project_number || '', name: p.name || '', client: p.client || '',
       start_date: p.start_date || '', end_date: p.end_date || '', project_leader: p.project_leader || '',
       color_index: p.color_index || 0, notes: p.notes || '',
+      place: p.place || '', team: p.team || '', status: p.status || '', producer: p.producer || '', creative: p.creative || '',
     })
     setEditing(true)
   }
@@ -136,6 +145,8 @@ export default function ProjectsView({ projects, crew, onProjectsChanged, onBook
       project_leader: editForm.project_leader.trim(),
       color_index: editForm.color_index,
       notes: editForm.notes,
+      place: editForm.place.trim(), team: editForm.team.trim(), status: editForm.status.trim(),
+      producer: editForm.producer.trim(), creative: editForm.creative.trim(),
       updated_at: new Date().toISOString(),
     }).eq('id', selected.project.id)
     // Oppdater visningsteksten på bookingene også, så kalenderen viser nytt navn
@@ -195,9 +206,18 @@ export default function ProjectsView({ projects, crew, onProjectsChanged, onBook
           <span style={{ ...s.weekLabel, fontSize: 15, fontWeight: 600, color: '#1a1a18' }}>{capFirst(fmtMonth(days[0]))}</span>
           <button style={s.navBtn} onClick={() => setMonthOffset(m => m + 1)}>Neste</button>
         </div>
-        <label style={{ fontSize: 12, color: '#888', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-          <input type="checkbox" checked={showPast} onChange={e => setShowPast(e.target.checked)} /> Vis avsluttede
-        </label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <input style={s.search} value={search} onChange={e => setSearch(e.target.value)} placeholder="Søk prosjekt, kunde, PL…" />
+          {teams.length > 1 && (
+            <select style={s.select} value={teamFilter} onChange={e => setTeamFilter(e.target.value)}>
+              <option value="">Alle team</option>
+              {teams.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          )}
+          <label style={{ fontSize: 12, color: '#888', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+            <input type="checkbox" checked={showPast} onChange={e => setShowPast(e.target.checked)} /> Vis avsluttede
+          </label>
+        </div>
       </div>
 
       <div style={{ ...s.tableWrap, border: '0.5px solid #e0dfd8', borderRadius: 12, background: '#fff' }}>
@@ -235,18 +255,21 @@ export default function ProjectsView({ projects, crew, onProjectsChanged, onBook
               })}
               <button key={r.key + '_bar'} onClick={() => openPanel(r.key)} title={r.name + ' · ' + r.count + ' crew'} style={{
                 gridRow: row, gridColumn: `${startIdx + 2} / ${endIdx + 3}`, alignSelf: 'center', margin: '0 2px', height: 26,
-                background: col.bg, color: col.text, border: isSel ? '2px solid ' + col.text : 'none',
+                background: r.pending ? 'transparent' : col.bg, color: col.text,
+                border: isSel ? '2px solid ' + col.text : (r.pending ? '1.5px dashed ' + col.text : 'none'),
+                opacity: r.pending && !isSel ? 0.85 : 1,
                 borderRadius: clippedLeft && clippedRight ? 0 : clippedLeft ? '0 13px 13px 0' : clippedRight ? '13px 0 0 13px' : 13,
                 fontFamily: 'inherit', fontSize: 11, fontWeight: 600, cursor: 'pointer', textAlign: 'left', padding: '0 10px',
                 overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', zIndex: 1,
               }}>
-                {r.name}{r.count > 0 && <span style={{ opacity: 0.7, fontWeight: 500 }}> · {r.count} crew</span>}
+                {r.name}{r.count > 0 && <span style={{ opacity: 0.7, fontWeight: 500 }}> · {r.count} crew</span>}{r.pending && <span style={{ opacity: 0.6, fontWeight: 500 }}> · pending</span>}
               </button>
             </>
           })}
         </div>
       </div>
       <div style={{ ...s.legend, marginTop: 10 }}>
+        <span style={s.legendItem}><span style={{ ...s.dot, background: 'transparent', border: '1.5px dashed #1B3A78' }} />Stiplet = Pending i Qondor</span>
         <span style={s.legendItem}><span style={{ ...s.dot, background: '#E9E7E0', border: '1px solid #999' }} />Grå = fritekst-prosjekt (ikke i prosjektlisten enda)</span>
       </div>
 
@@ -267,9 +290,18 @@ export default function ProjectsView({ projects, crew, onProjectsChanged, onBook
                     <div style={{ fontSize: 12, color: '#888', marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: '4px 12px' }}>
                       {p?.project_number && <span>Nr. {p.project_number}</span>}
                       {p?.client && <span>{p.client}</span>}
-                      {p?.project_leader && <span>PL: {p.project_leader}</span>}
+                      {p?.team && <span>Team {p.team}</span>}
+                      {p?.status && <span style={{ padding: '1px 8px', borderRadius: 10, fontWeight: 600, background: p.status === 'Confirmed' ? '#E1F5EE' : '#FAEEDA', color: p.status === 'Confirmed' ? '#0F6E56' : '#854F0B' }}>{p.status === 'Confirmed' ? 'Bekreftet' : p.status}</span>}
                     </div>
-                    <div style={{ fontSize: 13, color: '#1a1a18', marginTop: 8 }}>{fmtRange(p ? (p.start_date || selected.start) : selected.start, p ? (p.end_date || selected.end) : selected.end)}</div>
+                    <div style={{ fontSize: 13, color: '#1a1a18', marginTop: 8 }}>{fmtRange(p ? (p.start_date || selected.start) : selected.start, p ? (p.end_date || selected.end) : selected.end)}{p?.place ? <span style={{ color: '#888' }}> · {p.place}</span> : null}</div>
+                    {p && (p.project_leader || p.producer || p.creative) && (
+                      <div style={{ fontSize: 12, color: '#666', marginTop: 8, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '2px 10px' }}>
+                        {p.project_leader && <><span style={{ color: '#999' }}>Prosjektleder</span><span>{p.project_leader}</span></>}
+                        {p.producer && <><span style={{ color: '#999' }}>Produsent</span><span>{p.producer}</span></>}
+                        {p.creative && <><span style={{ color: '#999' }}>Kreativ</span><span>{p.creative}</span></>}
+                      </div>
+                    )}
+                    {p?.source === 'qondor' && <div style={{ fontSize: 11, color: '#aaa', marginTop: 6 }}>Fra Qondor-prosjektlisten</div>}
                     {p?.notes && <p style={{ fontSize: 13, color: '#666', marginTop: 8, whiteSpace: 'pre-wrap' }}>{p.notes}</p>}
                     <div style={{ display: 'flex', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
                       {p && <button style={s.miniBtn} onClick={startEdit}>Rediger prosjekt</button>}
@@ -285,7 +317,20 @@ export default function ProjectsView({ projects, crew, onProjectsChanged, onBook
                       <div><label style={s.formLabel}>Navn *</label><input style={s.formInput} value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} /></div>
                     </div>
                     <div><label style={s.formLabel}>Kunde</label><input style={s.formInput} value={editForm.client} onChange={e => setEditForm(f => ({ ...f, client: e.target.value }))} /></div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                      <div><label style={s.formLabel}>Sted</label><input style={s.formInput} value={editForm.place} onChange={e => setEditForm(f => ({ ...f, place: e.target.value }))} /></div>
+                      <div><label style={s.formLabel}>Team</label><input style={s.formInput} value={editForm.team} onChange={e => setEditForm(f => ({ ...f, team: e.target.value }))} placeholder="Oslo / Trondheim / Bergen" /></div>
+                    </div>
+                    <div><label style={s.formLabel}>Status</label>
+                      <select style={s.formInput} value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}>
+                        <option value="">—</option><option value="Confirmed">Confirmed</option><option value="Pending">Pending</option>
+                      </select>
+                    </div>
                     <div><label style={s.formLabel}>Prosjektleder</label><input style={s.formInput} value={editForm.project_leader} onChange={e => setEditForm(f => ({ ...f, project_leader: e.target.value }))} /></div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                      <div><label style={s.formLabel}>Produsent</label><input style={s.formInput} value={editForm.producer} onChange={e => setEditForm(f => ({ ...f, producer: e.target.value }))} /></div>
+                      <div><label style={s.formLabel}>Kreativ</label><input style={s.formInput} value={editForm.creative} onChange={e => setEditForm(f => ({ ...f, creative: e.target.value }))} /></div>
+                    </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                       <div><label style={s.formLabel}>Fra</label><input style={s.formInput} type="date" value={editForm.start_date} onChange={e => setEditForm(f => ({ ...f, start_date: e.target.value }))} /></div>
                       <div><label style={s.formLabel}>Til</label><input style={s.formInput} type="date" value={editForm.end_date} onChange={e => setEditForm(f => ({ ...f, end_date: e.target.value }))} /></div>
