@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { COLORS, STATUS } from '../lib/constants'
-import { getMonthDates, fmtMonth, dk } from '../lib/dateUtils'
+import { getMonthDates, getWeekDates, fmtMonth, fmtDay, dk } from '../lib/dateUtils'
 import { s } from '../lib/styles'
 
 // Prosjektkalender: én strek per prosjekt over dagene det varer (som heldags-
@@ -34,6 +34,10 @@ function fmtRange(a, b) {
 function legacyKey(text) { return 'legacy:' + text.trim().toLowerCase() }
 
 export default function ProjectsView({ projects, crew, onProjectsChanged, onBookingsChanged, openProfile, showToast, userName, userId }) {
+  const [calMode, setCalMode] = useState('month') // 'week' | 'month'
+  // Visning: 'cal' (kalender) | '2026' | '2027' | '2028' (liste per år) | 'done' (fullførte)
+  const [viewSel, setViewSel] = useState('cal')
+  const [weekOffset, setWeekOffset] = useState(0)
   const [monthOffset, setMonthOffset] = useState(0)
   const [monthBookings, setMonthBookings] = useState([])
   const [selectedKey, setSelectedKey] = useState(null)
@@ -46,10 +50,21 @@ export default function ProjectsView({ projects, crew, onProjectsChanged, onBook
   const [teamFilter, setTeamFilter] = useState('')
   const [search, setSearch] = useState('')
 
-  const days = getMonthDates(monthOffset)
-  const monthStart = dk(days[0])
-  const monthEnd = dk(days[days.length - 1])
+  const days = calMode === 'week' ? getWeekDates(weekOffset) : getMonthDates(monthOffset)
+  const offset = calMode === 'week' ? weekOffset : monthOffset
+  const setOffset = calMode === 'week' ? setWeekOffset : setMonthOffset
   const todayStr = dk(new Date())
+  const isList = viewSel !== 'cal'
+  // Datointervallet radene hentes for
+  let monthStart, monthEnd
+  if (viewSel === 'cal') { monthStart = dk(days[0]); monthEnd = dk(days[days.length - 1]) }
+  else if (viewSel === 'done') { monthStart = '2000-01-01'; monthEnd = todayStr }
+  else { monthStart = viewSel + '-01-01'; monthEnd = viewSel + '-12-31' }
+  const years = useMemo(() => {
+    const ys = new Set(projects.map(p => (p.start_date || '').slice(0, 4)).filter(Boolean))
+    ys.add(String(new Date().getFullYear()))
+    return [...ys].sort()
+  }, [projects])
   const crewById = useMemo(() => Object.fromEntries(crew.map(c => [c.id, c])), [crew])
 
   // Bookinger i måneden (kun de som faktisk er jobber)
@@ -90,14 +105,16 @@ export default function ProjectsView({ projects, crew, onProjectsChanged, onBook
       const ds = l.bookings.map(b => b.date).sort()
       out.push({ key: l.key, project: null, name: l.name, start: ds[0], end: ds[ds.length - 1], count: new Set(l.bookings.map(b => b.crew_id)).size, colorIndex: -1, legacy: true, legacyText: l.name })
     }
-    out.sort((a, b) => a.start.localeCompare(b.start) || a.name.localeCompare(b.name))
-    return out
-  }, [projects, monthBookings, monthStart, monthEnd])
+    let res = out
+    if (viewSel === 'done') res = out.filter(r => r.end < todayStr).sort((a, b) => b.end.localeCompare(a.end))
+    else res = out.sort((a, b) => a.start.localeCompare(b.start) || a.name.localeCompare(b.name))
+    return res
+  }, [projects, monthBookings, monthStart, monthEnd, viewSel, todayStr])
 
   const teams = useMemo(() => [...new Set(projects.map(p => p.team).filter(Boolean))].sort(), [projects])
   const q = search.trim().toLowerCase()
   const visibleRows = rows.filter(r =>
-    (showPast || r.end >= todayStr) &&
+    (isList || showPast || r.end >= todayStr) &&
     (!teamFilter || r.legacy || r.team === teamFilter) &&
     (!q || r.name.toLowerCase().includes(q) || (r.project?.client || '').toLowerCase().includes(q) || (r.project?.project_leader || '').toLowerCase().includes(q))
   )
@@ -200,11 +217,27 @@ export default function ProjectsView({ projects, crew, onProjectsChanged, onBook
   return (
     <div>
       <div style={{ ...s.weekNav, justifyContent: 'space-between', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button style={s.navBtn} onClick={() => setMonthOffset(m => m - 1)}>Forrige</button>
-          {monthOffset !== 0 && <button style={s.todayBtn} onClick={() => setMonthOffset(0)}>I dag</button>}
-          <span style={{ ...s.weekLabel, fontSize: 15, fontWeight: 600, color: '#1a1a18' }}>{capFirst(fmtMonth(days[0]))}</span>
-          <button style={s.navBtn} onClick={() => setMonthOffset(m => m + 1)}>Neste</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <select style={{ ...s.select, fontWeight: 600 }} value={viewSel} onChange={e => setViewSel(e.target.value)}>
+            <option value="cal">Kalender</option>
+            {years.map(y => <option key={y} value={y}>Prosjekter {y}</option>)}
+            <option value="done">Fullførte prosjekter</option>
+          </select>
+          {!isList && <>
+          <div style={s.calModeToggle}>
+            <button style={calMode === 'week' ? s.calModeBtnActive : s.calModeBtn} onClick={() => setCalMode('week')}>Uke</button>
+            <button style={calMode === 'month' ? s.calModeBtnActive : s.calModeBtn} onClick={() => setCalMode('month')}>Måned</button>
+          </div>
+          <button style={s.navBtn} onClick={() => setOffset(o => o - 1)}>Forrige</button>
+          {offset !== 0 && <button style={s.todayBtn} onClick={() => setOffset(0)}>I dag</button>}
+          <span style={{ ...s.weekLabel, fontSize: 15, fontWeight: 600, color: '#1a1a18' }}>
+            {calMode === 'week'
+              ? days[0].toLocaleDateString('nb-NO', { day: 'numeric', month: 'long' }) + ' – ' + days[6].toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
+              : capFirst(fmtMonth(days[0]))}
+          </span>
+          <button style={s.navBtn} onClick={() => setOffset(o => o + 1)}>Neste</button>
+          </>}
+          {isList && <span style={{ fontSize: 13, color: '#888' }}>{visibleRows.length} prosjekter</span>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <input style={s.search} value={search} onChange={e => setSearch(e.target.value)} placeholder="Søk prosjekt, kunde, PL…" />
@@ -214,26 +247,67 @@ export default function ProjectsView({ projects, crew, onProjectsChanged, onBook
               {teams.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           )}
-          <label style={{ fontSize: 12, color: '#888', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+          {!isList && <label style={{ fontSize: 12, color: '#888', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
             <input type="checkbox" checked={showPast} onChange={e => setShowPast(e.target.checked)} /> Vis avsluttede
-          </label>
+          </label>}
         </div>
       </div>
 
-      <div style={{ ...s.tableWrap, border: '0.5px solid #e0dfd8', borderRadius: 12, background: '#fff' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: `${labelCol}px repeat(${N}, minmax(28px, 1fr))`, minWidth: labelCol + N * 28 }}>
+      {isList && (
+        <div style={{ ...s.tableWrap, border: '0.5px solid #e0dfd8', borderRadius: 12, background: '#fff' }}>
+          <table style={{ ...s.table, minWidth: 720 }}>
+            <thead><tr>
+              <th style={{ ...s.th, textAlign: 'left' }}>Dato</th>
+              <th style={{ ...s.th, textAlign: 'left' }}>Nr.</th>
+              <th style={{ ...s.th, textAlign: 'left' }}>Prosjekt</th>
+              <th style={{ ...s.th, textAlign: 'left' }}>Kunde</th>
+              <th style={{ ...s.th, textAlign: 'left' }}>Team</th>
+              <th style={{ ...s.th, textAlign: 'left' }}>PL</th>
+              <th style={{ ...s.th, textAlign: 'left' }}>Status</th>
+              <th style={{ ...s.th, textAlign: 'right' }}>Crew</th>
+            </tr></thead>
+            <tbody>
+              {visibleRows.length === 0 && <tr><td colSpan={8} style={s.empty}>Ingen prosjekter her.</td></tr>}
+              {visibleRows.map(r => {
+                const p = r.project
+                const col = r.legacy ? { bg: '#E9E7E0', text: '#5a5952' } : COLORS[r.colorIndex % COLORS.length]
+                const isSel = r.key === selectedKey
+                return <tr key={r.key} onClick={() => openPanel(r.key)} style={{ cursor: 'pointer', background: isSel ? '#F0F6FF' : 'transparent' }}
+                  onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = '#FAFAF7' }} onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent' }}>
+                  <td style={listCell}><span style={{ whiteSpace: 'nowrap' }}>{fmtRange(r.start, r.end)}</span></td>
+                  <td style={{ ...listCell, color: '#888', fontSize: 12 }}>{p?.project_number || ''}</td>
+                  <td style={{ ...listCell, fontWeight: 600 }}>
+                    <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: col.bg, border: '1px solid ' + col.text, marginRight: 8, verticalAlign: 'middle' }} />
+                    {p ? p.name : r.name}
+                  </td>
+                  <td style={listCell}>{p?.client || ''}</td>
+                  <td style={listCell}>{p?.team || ''}</td>
+                  <td style={listCell}>{p?.project_leader || ''}</td>
+                  <td style={listCell}>{p?.status ? <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 600, background: p.status === 'Confirmed' ? '#E1F5EE' : '#FAEEDA', color: p.status === 'Confirmed' ? '#0F6E56' : '#854F0B' }}>{p.status === 'Confirmed' ? 'Bekreftet' : p.status}</span> : (r.legacy ? <span style={{ fontSize: 11, color: '#999' }}>fritekst</span> : '')}</td>
+                  <td style={{ ...listCell, textAlign: 'right', fontWeight: 600, color: r.count ? '#1a1a18' : '#bbb' }}>{r.count || '–'}</td>
+                </tr>
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {!isList && <div style={{ ...s.tableWrap, border: '0.5px solid #e0dfd8', borderRadius: 12, background: '#fff' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `${labelCol}px repeat(${N}, minmax(${calMode === 'week' ? 90 : 28}px, 1fr))`, minWidth: labelCol + N * (calMode === 'week' ? 90 : 28) }}>
           {/* Header */}
           <div style={{ ...hdrCell, textAlign: 'left', paddingLeft: 12, position: 'sticky', left: 0, background: '#fff', zIndex: 2 }}>Prosjekt</div>
           {days.map(d => {
             const ds = dk(d); const dow = d.getDay(); const we = dow === 0 || dow === 6; const today = ds === todayStr
             return <div key={ds} style={{ ...hdrCell, ...(we ? { background: '#FAF8F4', color: '#A09A8E' } : {}), ...(today ? { color: '#1B3A78', fontWeight: 700, background: '#F0F6FF' } : {}) }}>
-              <div style={{ fontSize: 9, textTransform: 'uppercase' }}>{WEEKDAY_SHORT[dow]}</div>
-              <div>{d.getDate()}</div>
+              {calMode === 'week' ? <div style={{ fontSize: 12, padding: '4px 0' }}>{fmtDay(d)}</div> : <>
+                <div style={{ fontSize: 9, textTransform: 'uppercase' }}>{WEEKDAY_SHORT[dow]}</div>
+                <div>{d.getDate()}</div>
+              </>}
             </div>
           })}
 
           {visibleRows.length === 0 && (
-            <div style={{ gridColumn: `1 / ${N + 2}`, ...s.empty }}>Ingen prosjekter denne måneden. Prosjekter dukker opp her når crew bookes på dem.</div>
+            <div style={{ gridColumn: `1 / ${N + 2}`, ...s.empty }}>Ingen prosjekter i denne {calMode === 'week' ? 'uken' : 'måneden'}. Prosjekter fra Qondor og bookinger vises her.</div>
           )}
 
           {visibleRows.map((r, i) => {
@@ -254,7 +328,7 @@ export default function ProjectsView({ projects, crew, onProjectsChanged, onBook
                 return <div key={r.key + '_' + di} style={{ gridRow: row, gridColumn: di + 2, borderBottom: '0.5px solid #f0efe9', borderLeft: '0.5px solid #f0efe9', background: we ? '#FBFAF6' : (isSel ? '#F7FAFF' : 'transparent'), minHeight: 40 }} />
               })}
               <button key={r.key + '_bar'} onClick={() => openPanel(r.key)} title={r.name + ' · ' + r.count + ' crew'} style={{
-                gridRow: row, gridColumn: `${startIdx + 2} / ${endIdx + 3}`, alignSelf: 'center', margin: '0 2px', height: 26,
+                gridRow: row, gridColumn: `${startIdx + 2} / ${endIdx + 3}`, alignSelf: 'center', margin: '0 2px', height: calMode === 'week' ? 32 : 26,
                 background: r.pending ? 'transparent' : col.bg, color: col.text,
                 border: isSel ? '2px solid ' + col.text : (r.pending ? '1.5px dashed ' + col.text : 'none'),
                 opacity: r.pending && !isSel ? 0.85 : 1,
@@ -267,11 +341,11 @@ export default function ProjectsView({ projects, crew, onProjectsChanged, onBook
             </>
           })}
         </div>
-      </div>
-      <div style={{ ...s.legend, marginTop: 10 }}>
+      </div>}
+      {!isList && <div style={{ ...s.legend, marginTop: 10 }}>
         <span style={s.legendItem}><span style={{ ...s.dot, background: 'transparent', border: '1.5px dashed #1B3A78' }} />Stiplet = Pending i Qondor</span>
         <span style={s.legendItem}><span style={{ ...s.dot, background: '#E9E7E0', border: '1px solid #999' }} />Grå = fritekst-prosjekt (ikke i prosjektlisten enda)</span>
-      </div>
+      </div>}
 
       {/* Sidepanel */}
       {selected && (
@@ -383,6 +457,7 @@ export default function ProjectsView({ projects, crew, onProjectsChanged, onBook
   )
 }
 
+const listCell = { padding: '9px 10px', borderBottom: '0.5px solid #f0efe9', fontSize: 13, color: '#1a1a18', verticalAlign: 'middle' }
 const hdrCell = { padding: '6px 2px', fontSize: 11, fontWeight: 500, color: '#888', textAlign: 'center', borderBottom: '0.5px solid #e0dfd8', lineHeight: 1.2 }
 const labelCell = { display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', fontSize: 13, fontWeight: 500, color: '#1a1a18', borderBottom: '0.5px solid #f0efe9', borderRight: '0.5px solid #e0dfd8', cursor: 'pointer', minHeight: 40 }
 const panel = {
