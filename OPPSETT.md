@@ -83,12 +83,16 @@ Noe som ikke fungerer? Vanlige problemer:
 
 ## Roller og crew-innlogging (lagt til september 2026)
 
-Portalen har to typer brukere:
+Portalen har tre typer brukere:
 
-| Rolle | Hvem | Hva de ser |
+| Rolle | Hvem | Hva de kan |
 |---|---|---|
-| **Admin** | Alle med @zevent.no-adresse | Alt: kalender, crew, profiler, booking |
+| **Admin** | Martine og Sigrid (listen `role_for_email` i schema.sql) | Alt, inkludert endre timepris og roller |
+| **Prosjektleder** | Alle andre med @zevent.no | Alt i portalen, men kan ikke endre timepris |
 | **Crew** | Alle andre | Kun egen side: «Mine jobber», «Min tilgjengelighet», «Mine opplysninger» |
+
+Vil du gjøre noen til admin: legg e-posten inn i `role_for_email` i `supabase/schema.sql`
+og kjør skjemaet på nytt — rollene oppdateres automatisk.
 
 **Slik får et crew-medlem tilgang:**
 1. Legg inn e-postadressen deres på profilen i portalen (feltet *E-post*).
