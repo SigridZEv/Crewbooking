@@ -44,7 +44,7 @@ function datesBetween(a, b) {
   return out
 }
 
-export default function ProjectsView({ projects, crew, onProjectsChanged, onBookingsChanged, openProfile, showToast, userName, userId }) {
+export default function ProjectsView({ projects, crew, onProjectsChanged, onBookingsChanged, openProfile, showToast, userName, userId, focusProject }) {
   const [calMode, setCalMode] = useState('month') // 'week' | 'month'
   // Visning: 'cal' (kalender) | '2026' | '2027' | '2028' (liste per år) | 'done' (fullførte)
   const [viewSel, setViewSel] = useState('cal')
@@ -160,6 +160,21 @@ export default function ProjectsView({ projects, crew, onProjectsChanged, onBook
   }
   function closePanel() { setSelectedKey(null); setEditing(false); setBookOpen(false) }
 
+  // Åpne et bestemt prosjekt (fra Oversikt eller søk): hopp til måneden det starter i
+  useEffect(() => {
+    if (!focusProject) return
+    setViewSel('cal'); setCalMode('month')
+    setEditing(false); setBookOpen(false)
+    if (!focusProject.id) { setSelectedKey(null); return }
+    const p = projects.find(x => x.id === focusProject.id)
+    if (!p) return
+    if (p.start_date) {
+      const now = new Date(), d = new Date(p.start_date + 'T12:00:00')
+      setMonthOffset((d.getFullYear() - now.getFullYear()) * 12 + (d.getMonth() - now.getMonth()))
+    }
+    setSelectedKey(p.id)
+  }, [focusProject, projects])
+
   function startEdit() {
     const p = selected.project
     setEditForm({
@@ -198,16 +213,6 @@ export default function ProjectsView({ projects, crew, onProjectsChanged, onBook
     onProjectsChanged(); onBookingsChanged(); loadMonth()
   }
 
-  async function deleteProject() {
-    if (!window.confirm('Slette prosjektet «' + selected.name + '»? Bookingene beholdes, men mister koblingen til prosjektet.')) return
-    setSaving(true)
-    const { error } = await supabase.from('projects').delete().eq('id', selected.project.id)
-    setSaving(false)
-    if (error) { showToast('Kunne ikke slette'); return }
-    closePanel()
-    showToast('Prosjekt slettet')
-    onProjectsChanged(); loadMonth()
-  }
 
   // Gjør en fritekst-gruppe til et ekte prosjekt og koble bookingene til det
   async function convertLegacy() {
@@ -468,7 +473,6 @@ export default function ProjectsView({ projects, crew, onProjectsChanged, onBook
                     {p?.notes && <p style={{ fontSize: 13, color: '#666', marginTop: 8, whiteSpace: 'pre-wrap' }}>{p.notes}</p>}
                     <div style={{ display: 'flex', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
                       {p && <button style={s.miniBtn} onClick={startEdit}>Rediger prosjekt</button>}
-                      {p && <button style={{ ...s.miniBtn, color: '#A32D2D' }} onClick={deleteProject} disabled={saving}>Slett</button>}
                       {selected.legacy && <button style={{ ...s.miniBtn, background: '#1B3A78', color: '#fff', border: 'none' }} onClick={convertLegacy} disabled={saving}>{saving ? 'Lagrer…' : 'Gjør til prosjekt i lista'}</button>}
                     </div>
                     {selected.legacy && <p style={{ fontSize: 12, color: '#888', marginTop: 8 }}>Dette er et fritekst-navn fra bookinger. Gjør det til et prosjekt for å få datoer, kunde og Qondor-nummer.</p>}

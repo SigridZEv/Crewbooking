@@ -10,6 +10,9 @@
     <style>
       * { box-sizing: border-box; }
       body { margin: 0; background: #f5f4f0; font-family: 'Avenir Next', 'Avenir', 'Century Gothic', 'Nunito', system-ui, sans-serif; }
+      @keyframes zFloat { 0%,100% { transform: translateY(0) translateX(0) } 33% { transform: translateY(-9px) translateX(4px) } 66% { transform: translateY(5px) translateX(-4px) } }
+      @media (prefers-reduced-motion: reduce) { * { animation: none !important } }
+      @keyframes zFadeIn { from { opacity: 0; transform: scale(.92) } to { opacity: 1; transform: none } }
       @keyframes zSlideIn { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
     </style>
   </head>
