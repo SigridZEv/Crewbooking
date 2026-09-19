@@ -47,8 +47,6 @@ export default function BookingPage({ user, isAdmin = false }) {
   // Prosjekter (felles liste — hentes fra Qondor senere)
   const [projects, setProjects] = useState([])
   const [selectedProjectId, setSelectedProjectId] = useState('')
-  const [newProjectOpen, setNewProjectOpen] = useState(false)
-  const [newProject, setNewProject] = useState({ project_number: '', name: '', client: '', start_date: '', end_date: '' })
   // Profile editing
   const [editingRate, setEditingRate] = useState(false)
   const [rateInput, setRateInput] = useState('')
@@ -161,26 +159,6 @@ export default function BookingPage({ user, isAdmin = false }) {
     if (p) setProjectInput(projectLabel(p))
   }
 
-  async function createProjectInline() {
-    if (!newProject.name.trim()) return
-    setSaving(true)
-    const { data, error } = await supabase.from('projects').insert({
-      project_number: newProject.project_number.trim(),
-      name: newProject.name.trim(),
-      client: newProject.client.trim(),
-      start_date: newProject.start_date || null,
-      end_date: newProject.end_date || newProject.start_date || null,
-      project_leader: userName || '',
-      color_index: projects.length % COLORS.length,
-      created_by: userId,
-    }).select().single()
-    setSaving(false)
-    if (error || !data) { showToast('Kunne ikke opprette prosjekt'); return }
-    setProjects(prev => [data, ...prev])
-    pickProject(data.id)
-    setNewProjectOpen(false)
-    showToast('Prosjekt opprettet')
-  }
 
   function openProfile(c) {
     setProfileOpen(c)
@@ -1336,29 +1314,10 @@ export default function BookingPage({ user, isAdmin = false }) {
             </> : <>
               <div style={{fontSize:13,color:'#888',marginBottom:12}}>{STATUS[pendingStatus].full} - fyll inn detaljer</div>
               <label style={s.formLabel}>Prosjekt / arrangement</label>
-              <select style={{...s.formInput,marginBottom:6}} value={selectedProjectId} onChange={e => { if (e.target.value === '__new') { setNewProjectOpen(true); return } pickProject(e.target.value) }}>
+              <select style={{...s.formInput,marginBottom:6}} value={selectedProjectId} onChange={e => pickProject(e.target.value)}>
                 <option value="">— Velg prosjekt —</option>
                 {projects.map(p => <option key={p.id} value={p.id}>{projectLabel(p)}</option>)}
-                <option value="__new">+ Nytt prosjekt…</option>
               </select>
-              {newProjectOpen && (
-                <div style={{background:'#F5F4F0',borderRadius:8,padding:10,marginBottom:8}}>
-                  <div style={{fontSize:12,fontWeight:700,color:'#1B3A78',marginBottom:6}}>Nytt prosjekt</div>
-                  <div style={{display:'grid',gridTemplateColumns:'90px 1fr',gap:6,marginBottom:6}}>
-                    <input style={s.formInput} value={newProject.project_number} onChange={e => setNewProject(f=>({...f,project_number:e.target.value}))} placeholder="Qondor-nr" />
-                    <input style={s.formInput} value={newProject.name} onChange={e => setNewProject(f=>({...f,name:e.target.value}))} placeholder="Prosjektnavn *" autoFocus />
-                  </div>
-                  <input style={{...s.formInput,marginBottom:6}} value={newProject.client} onChange={e => setNewProject(f=>({...f,client:e.target.value}))} placeholder="Kunde" />
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:8}}>
-                    <div><label style={s.formLabel}>Fra</label><input style={s.formInput} type="date" value={newProject.start_date} onChange={e => setNewProject(f=>({...f,start_date:e.target.value}))} /></div>
-                    <div><label style={s.formLabel}>Til</label><input style={s.formInput} type="date" value={newProject.end_date} onChange={e => setNewProject(f=>({...f,end_date:e.target.value}))} /></div>
-                  </div>
-                  <div style={{display:'flex',gap:6}}>
-                    <button style={{...s.miniBtn,background:'#1B3A78',color:'#fff',border:'none'}} onClick={createProjectInline} disabled={saving || !newProject.name.trim()}>Opprett og velg</button>
-                    <button style={s.clearBtn} onClick={() => setNewProjectOpen(false)}>Avbryt</button>
-                  </div>
-                </div>
-              )}
               <input style={{...s.formInput,marginBottom:10}} value={projectInput} onChange={e => { setProjectInput(e.target.value); setSelectedProjectId('') }} placeholder="…eller skriv fritt" />
               <label style={s.formLabel}>Booket av</label>
               <input style={{...s.formInput,marginBottom:16}} value={bookedByInput} onChange={e => setBookedByInput(e.target.value)} placeholder="Ditt navn" />
