@@ -67,6 +67,9 @@ export default function BookingPage({ user, isAdmin = false }) {
   const [categoryInput, setCategoryInput] = useState('')
   // pendingIsNew: null = no pending change, true/false = local edit that needs to be saved
   const [pendingIsNew, setPendingIsNew] = useState(null)
+  // Slett crew — egen bekreftelsesboks (ikke window.confirm)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting, setDeleting] = useState(false)
   // Local buffers — all changes to skills/comments live here until saveAll commits them.
   // Skills excludes allergi/sertifikat (those are handled via allergyInput/certificateInput).
   // New items get an id starting with '_tmp_' so we can tell pending-adds from existing ones.
@@ -718,6 +721,19 @@ export default function BookingPage({ user, isAdmin = false }) {
     setEditingComment(null)
   }
 
+  async function confirmDeleteCrew() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    const { error } = await supabase.from('crew').delete().eq('id', deleteTarget.id)
+    setDeleting(false)
+    if (error) { showToast('Kunne ikke slette — prøv igjen'); return }
+    setDeleteTarget(null)
+    setProfileOpen(null)
+    setCrew(prev => prev.filter(c => c.id !== deleteTarget.id))
+    showToast(deleteTarget.name + ' er slettet')
+    loadBookings()
+  }
+
   async function logout() { await supabase.auth.signOut() }
 
   const days = calMode === 'month' ? getMonthDates(monthOffset) : getWeekDates(weekOffset)
@@ -1197,6 +1213,11 @@ export default function BookingPage({ user, isAdmin = false }) {
                   </div>)}
                 </div>}
 
+                {/* Slett crew */}
+                <div style={{ ...s.msec, display: 'flex', justifyContent: 'flex-end' }}>
+                  <button style={{ ...s.editBtn, color: '#A32D2D', borderColor: '#E8C4C4' }} onClick={() => setDeleteTarget(c)}>Slett</button>
+                </div>
+
                 {/* Sticky save bar — only visible when there are unsaved changes */}
                 {isDirty() && (
                   <div style={s.saveBar}>
@@ -1391,6 +1412,24 @@ export default function BookingPage({ user, isAdmin = false }) {
                 <button style={s.submitBtn} onClick={saveNewPassword}>Lagre nytt passord</button>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div style={{ ...s.overlay, zIndex: 400, alignItems: 'center', paddingTop: 0 }} onClick={() => !deleting && setDeleteTarget(null)}>
+          <div style={{ ...s.modal, maxWidth: 400, textAlign: 'center', padding: '1.75rem 1.5rem' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 34, marginBottom: 10 }}>🗑️</div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: '#1a1a18', marginBottom: 10 }}>Slette crew?</div>
+            <p style={{ fontSize: 14, color: '#444', lineHeight: 1.55, margin: '0 0 20px' }}>
+              Er du sikker på at du vil slette <strong>{deleteTarget.name}</strong> fra Crewbooking?<br />
+              Alle bookinger, ferdigheter og referanser for personen slettes også.<br />
+              <strong>Dette kan ikke angres.</strong>
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button style={{ ...s.miniBtn, flex: 1, padding: '10px' }} onClick={() => setDeleteTarget(null)} disabled={deleting}>Avbryt</button>
+              <button style={{ ...s.submitBtn, flex: 1, marginTop: 0, background: '#C92A2A', boxShadow: 'none' }} onClick={confirmDeleteCrew} disabled={deleting}>{deleting ? 'Sletter…' : 'Ja, jeg er sikker'}</button>
+            </div>
           </div>
         </div>
       )}
