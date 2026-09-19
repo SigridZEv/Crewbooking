@@ -966,7 +966,7 @@ export default function BookingPage({ user, isAdmin = false }) {
       {/* Profile modal */}
       {profileOpen && (
         <div style={s.overlay} onClick={tryCloseProfile}>
-          <div style={s.modal} onClick={e => e.stopPropagation()}>
+          <div style={{...s.modal,maxWidth:640,maxHeight:"92vh"}} onClick={e => e.stopPropagation()}>
             <button style={s.closeBtn} onClick={tryCloseProfile}>X</button>
             {(() => {
               const c = profileOpen
@@ -1044,6 +1044,42 @@ export default function BookingPage({ user, isAdmin = false }) {
                       {c.user_id && <span style={{fontSize:11,color:'#0F6E56',background:'#E1F5EE',padding:'2px 8px',borderRadius:10,fontWeight:600}}>Har innlogging</span>}
                     </div>
                   )}
+                </div>
+
+                {/* Personalia */}
+                <div style={s.infoGrid}>
+                  <div style={s.infoCell}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
+                      <div style={s.msecHdr}>Fødselsdato</div>
+                      {!editingBirthdate && <button style={s.editBtn} onClick={() => setEditingBirthdate(true)}>Rediger</button>}
+                    </div>
+                    {editingBirthdate ? (
+                      <div style={{display:'flex',gap:6}}>
+                        <input style={{...s.formInput,flex:1}} type='date' value={birthdateInput} onChange={e => setBirthdateInput(e.target.value)} autoFocus />
+                        <button style={s.miniBtn} onClick={() => setEditingBirthdate(false)}>Ferdig</button>
+                        <button style={s.clearBtn} onClick={() => { setBirthdateInput(c.birthdate || ''); setEditingBirthdate(false) }}>X</button>
+                      </div>
+                    ) : (
+                      <div style={{fontSize:13,color:birthdateInput?'#1a1a18':'#aaa'}}>
+                        {birthdateInput ? new Date(birthdateInput).toLocaleDateString('nb-NO') : 'Ikke registrert'}
+                      </div>
+                    )}
+                  </div>
+                  <div style={s.infoCell}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
+                      <div style={s.msecHdr}>Bosted</div>
+                      {!editingLocation && <button style={s.editBtn} onClick={() => setEditingLocation(true)}>Rediger</button>}
+                    </div>
+                    {editingLocation ? (
+                      <div style={{display:'flex',gap:6}}>
+                        <input style={{...s.formInput,flex:1}} value={locationInput} onChange={e => setLocationInput(e.target.value)} placeholder='f.eks. Oslo' autoFocus onKeyDown={e => { if(e.key==='Enter') setEditingLocation(false) }} />
+                        <button style={s.miniBtn} onClick={() => setEditingLocation(false)}>Ferdig</button>
+                        <button style={s.clearBtn} onClick={() => { setLocationInput(c.location || ''); setEditingLocation(false) }}>X</button>
+                      </div>
+                    ) : (
+                      <div style={{fontSize:13,color:locationInput?'#1a1a18':'#aaa'}}>{locationInput || 'Ikke registrert'}</div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Editable bio */}
@@ -1157,40 +1193,6 @@ export default function BookingPage({ user, isAdmin = false }) {
                   )}
                 </div>
 
-                <div style={s.infoGrid}>
-                  <div style={s.infoCell}>
-                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
-                      <div style={s.msecHdr}>Fodselsdato</div>
-                      {!editingBirthdate && <button style={s.editBtn} onClick={() => setEditingBirthdate(true)}>Rediger</button>}
-                    </div>
-                    {editingBirthdate ? (
-                      <div style={{display:'flex',gap:6}}>
-                        <input style={{...s.formInput,flex:1}} type='date' value={birthdateInput} onChange={e => setBirthdateInput(e.target.value)} autoFocus />
-                        <button style={s.miniBtn} onClick={() => setEditingBirthdate(false)}>Ferdig</button>
-                        <button style={s.clearBtn} onClick={() => { setBirthdateInput(c.birthdate || ''); setEditingBirthdate(false) }}>X</button>
-                      </div>
-                    ) : (
-                      <div style={{fontSize:13,color:birthdateInput?'#1a1a18':'#aaa'}}>
-                        {birthdateInput ? new Date(birthdateInput).toLocaleDateString('nb-NO') : 'Ikke registrert'}
-                      </div>
-                    )}
-                  </div>
-                  <div style={s.infoCell}>
-                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
-                      <div style={s.msecHdr}>Bosted</div>
-                      {!editingLocation && <button style={s.editBtn} onClick={() => setEditingLocation(true)}>Rediger</button>}
-                    </div>
-                    {editingLocation ? (
-                      <div style={{display:'flex',gap:6}}>
-                        <input style={{...s.formInput,flex:1}} value={locationInput} onChange={e => setLocationInput(e.target.value)} placeholder='f.eks. Oslo' autoFocus onKeyDown={e => { if(e.key==='Enter') setEditingLocation(false) }} />
-                        <button style={s.miniBtn} onClick={() => setEditingLocation(false)}>Ferdig</button>
-                        <button style={s.clearBtn} onClick={() => { setLocationInput(c.location || ''); setEditingLocation(false) }}>X</button>
-                      </div>
-                    ) : (
-                      <div style={{fontSize:13,color:locationInput?'#1a1a18':'#aaa'}}>{locationInput || 'Ikke registrert'}</div>
-                    )}
-                  </div>
-                </div>
                 {/* Editable allergy */}
                 <div style={s.msec}>
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
