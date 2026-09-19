@@ -4,9 +4,15 @@ import { COLORS, ALLERGIES, STATUS, CATEGORIES } from '../lib/constants'
 import { getWeekDates, fmtDay, dk, getMonthDates, fmtMonth } from '../lib/dateUtils'
 import { s } from '../lib/styles'
 import ProjectsView, { projectLabel } from './ProjectsView'
+import OverviewView from './OverviewView'
+import Sidebar, { useIsMobile } from '../components/Sidebar'
 
 export default function BookingPage({ user, isAdmin = false }) {
-  const [view, setView] = useState('cal')
+  const [view, setView] = useState('overview') // overview | projects | crew | timesheets
+  const [crewSub, setCrewSub] = useState('grid') // grid (tilgjengelighet) | list
+  const [focusProject, setFocusProject] = useState(null) // { id, n } – åpne et prosjekt i Prosjekter-visningen
+  const [globalQ, setGlobalQ] = useState('')
+  const isMobile = useIsMobile()
   const [crew, setCrew] = useState([])
   const [bookings, setBookings] = useState({})
   const [weekOffset, setWeekOffset] = useState(0)
@@ -27,7 +33,6 @@ export default function BookingPage({ user, isAdmin = false }) {
   const [addError, setAddError] = useState('')
   const [saving, setSaving] = useState(false)
   const [userName, setUserName] = useState('')
-  const [showUserMenu, setShowUserMenu] = useState(false)
   const [myProfileOpen, setMyProfileOpen] = useState(false)
   const [myProfileForm, setMyProfileForm] = useState({ title: '', phone: '', email: '' })
   const [userId, setUserId] = useState(null)
@@ -771,39 +776,74 @@ export default function BookingPage({ user, isAdmin = false }) {
 
   const todayStr = dk(new Date())
 
+  function openProject(p) {
+    setView('projects')
+    setFocusProject(p ? { id: p.id, n: Date.now() } : { id: null, n: Date.now() })
+  }
+
+  const gq = globalQ.trim().toLowerCase()
+  const globalHits = gq ? {
+    crew: crew.filter(c => c.name.toLowerCase().includes(gq) || (c.category || '').toLowerCase().includes(gq)).slice(0, 5),
+    projects: projects.filter(p => projectLabel(p).toLowerCase().includes(gq) || (p.client || '').toLowerCase().includes(gq)).sort((a, b) => (b.start_date || '').localeCompare(a.start_date || '')).slice(0, 5),
+  } : null
+  const noLoginCount = crew.filter(c => !c.user_id).length
+
   return (
-    <div style={s.page}>
-      <div style={s.header}>
-        <div style={s.headerLeft}>
-          <img src="/Z_logo.png" alt="Z Event" style={s.brandLogo} />
-          <div>
-            <span style={s.brand}>Z Event</span>
-            <h1 style={s.title}>Crew Portal</h1>
-          </div>
-        </div>
-        <div style={s.headerRight}>
-          <button style={s.addBtn} onClick={() => setAddOpen(true)}>+ Legg til crew</button>
-          <div style={s.tabs}>
-            <button style={{...s.tab, ...(view==='cal'?s.tabActive:{})}} onClick={() => setView('cal')}>Kalender</button>
-            <button style={{...s.tab, ...(view==='crew'?s.tabActive:{})}} onClick={() => setView('crew')}>Crew</button>
-            <button style={{...s.tab, ...(view==='projects'?s.tabActive:{})}} onClick={() => setView('projects')}>Prosjekter</button>
-          </div>
-          <div style={{position:'relative'}} onMouseEnter={() => setShowUserMenu(true)} onMouseLeave={() => setShowUserMenu(false)}>
-            <button style={s.logoutBtn}>👤 {userName || 'Min konto'}</button>
-            {showUserMenu && (
-              <div style={{position:'absolute',top:'100%',right:0,paddingTop:8,zIndex:200}}>
-                <div style={{background:'#fff',borderRadius:10,border:'1px solid #E5E7F0',boxShadow:'0 8px 24px rgba(26,27,46,0.12)',minWidth:190,overflow:'hidden'}}>
-                  <button style={s.menuItem} onClick={() => { setMyProfileOpen(true); setShowUserMenu(false) }}>👤 Min profil</button>
-                  <div style={{borderTop:'1px solid #F0F2FF'}} />
-                  <button style={{...s.menuItem,color:'#C92A2A'}} onClick={() => { logout(); setShowUserMenu(false) }}>🚪 Logg ut</button>
+    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: s.page.fontFamily, color: '#1a1a18' }}>
+      <Sidebar view={view} setView={v => { setView(v); setGlobalQ('') }} userName={userName} roleLabel={isAdmin ? 'Admin' : 'Prosjektleder'}
+        badges={{ crew: noLoginCount }} onMyProfile={() => setMyProfileOpen(true)} onLogout={logout} mobile={isMobile} />
+
+      <div style={{ ...s.page, flex: 1, minWidth: 0, maxWidth: 'none', minHeight: 'auto', padding: isMobile ? '1rem 1rem 5rem' : '1.5rem 2rem' }}>
+      {/* Toppfelt: global søk */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, position: 'relative' }}>
+        {isMobile && <img src="/Z_logo.png" alt="Z Event" style={{ width: 30, height: 30, objectFit: 'contain' }} />}
+        <div style={{ position: 'relative', flex: 1, maxWidth: 420, marginLeft: 'auto' }}>
+          <input style={{ ...s.formInput, padding: '9px 14px 9px 34px', borderRadius: 10 }} value={globalQ} onChange={e => setGlobalQ(e.target.value)} placeholder="Søk crew eller prosjekt…" />
+          <span style={{ position: 'absolute', left: 12, top: 9, fontSize: 13, color: '#aaa' }}>🔍</span>
+          {globalHits && (
+            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 6, background: '#fff', borderRadius: 12, border: '0.5px solid #e0dfd8', boxShadow: '0 12px 32px rgba(26,27,46,0.14)', zIndex: 300, overflow: 'hidden' }}>
+              {globalHits.crew.length === 0 && globalHits.projects.length === 0 && <div style={{ padding: '10px 14px', fontSize: 13, color: '#aaa' }}>Ingen treff</div>}
+              {globalHits.crew.length > 0 && <div style={{ padding: '8px 14px 2px', fontSize: 10, fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '.06em' }}>Crew</div>}
+              {globalHits.crew.map(c => { const col = COLORS[c.color_index % COLORS.length]; return (
+                <div key={c.id} style={s.menuItem} onClick={() => { openProfile(c); setGlobalQ('') }}>
+                  <div style={{ ...s.avatar, width: 24, height: 24, fontSize: 10, background: col.bg, color: col.text, display: 'inline-flex', marginRight: 8, verticalAlign: 'middle' }}>{c.initials}</div>
+                  {c.name}<span style={{ color: '#999', fontSize: 11, marginLeft: 8 }}>{c.category || ''}</span>
+                </div>) })}
+              {globalHits.projects.length > 0 && <div style={{ padding: '8px 14px 2px', fontSize: 10, fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '.06em' }}>Prosjekter</div>}
+              {globalHits.projects.map(p => (
+                <div key={p.id} style={s.menuItem} onClick={() => { openProject(p); setGlobalQ('') }}>
+                  {projectLabel(p)}<span style={{ color: '#999', fontSize: 11, marginLeft: 8 }}>{[p.client, p.start_date ? p.start_date.slice(0, 4) : ''].filter(Boolean).join(' · ')}</span>
                 </div>
-              </div>
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {view === 'cal' && (
+      {view === 'overview' && (
+        <OverviewView projects={projects} crew={crew} openProfile={openProfile} openProject={openProject} userName={userName} />
+      )}
+
+      {view === 'timesheets' && (
+        <div style={{ textAlign: 'center', padding: '80px 20px', color: '#888' }}>
+          <div style={{ fontSize: 40, marginBottom: 10 }}>▥</div>
+          <div style={{ fontSize: 17, fontWeight: 600, color: '#1a1a18', marginBottom: 6 }}>Timelister kommer snart</div>
+          <div style={{ fontSize: 13 }}>Her vil crew levere timelister per jobb, og du godkjenner og eksporterer dem.</div>
+        </div>
+      )}
+
+      {view === 'crew' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600, marginRight: 8 }}>Crew</h2>
+          <div style={s.tabs}>
+            <button style={{ ...s.tab, ...(crewSub === 'grid' ? s.tabActive : {}) }} onClick={() => setCrewSub('grid')}>Tilgjengelighet</button>
+            <button style={{ ...s.tab, ...(crewSub === 'list' ? s.tabActive : {}) }} onClick={() => setCrewSub('list')}>Alle crew</button>
+          </div>
+          <button style={{ ...s.addBtn, marginLeft: 'auto' }} onClick={() => setAddOpen(true)}>+ Legg til crew</button>
+        </div>
+      )}
+
+      {view === 'crew' && crewSub === 'grid' && (
         <div>
           <div style={s.filterBar}>
             <select style={s.select} value={filterAvail} onChange={e => setFilterAvail(e.target.value)}>
@@ -922,7 +962,7 @@ export default function BookingPage({ user, isAdmin = false }) {
         </div>
       )}
 
-      {view === 'crew' && (
+      {view === 'crew' && crewSub === 'list' && (
         <div>
           <div style={s.filterBar}>
             <input style={s.search} value={searchCrew} onChange={e => setSearchCrew(e.target.value)} placeholder="Sok navn eller ferdighet..." />
@@ -960,8 +1000,10 @@ export default function BookingPage({ user, isAdmin = false }) {
           showToast={showToast}
           userName={userName}
           userId={userId}
+          focusProject={focusProject}
         />
       )}
+      </div>{/* /main */}
 
       {/* Profile modal */}
       {profileOpen && (
