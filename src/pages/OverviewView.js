@@ -69,24 +69,23 @@ export default function OverviewView({ projects, crew, openProfile, openProject,
     const out = [
       { key: 'done', n: done, text: 'prosjekter fullført i ' + year, bg: '#E1F5EE', color: '#0F6E56' },
       { key: 'left', n: left, text: 'prosjekter igjen i ' + year, bg: '#E3EAF7', color: '#1B3A78' },
-      { key: 'jobs', n: yearBookings ? jobs : null, text: 'crew-jobber booket i ' + year, bg: '#FAEEDA', color: '#854F0B' },
+      { key: 'jobs', n: yearBookings ? jobs : null, text: 'crew booket i ' + year, bg: '#FAEEDA', color: '#854F0B' },
     ]
     if (yb.length) {
-      out.push({ key: 'days', n: yb.length, text: 'crew-dager booket i ' + year, bg: '#F3E8F5', color: '#6B3A7A' })
-      // Travleste måned
+      // Travleste måned – flest prosjekter med crew
       const perMonth = {}
-      for (const b of yb) perMonth[b.date.slice(5, 7)] = (perMonth[b.date.slice(5, 7)] || 0) + 1
+      for (const k of new Set(yb.map(b => b.date.slice(5, 7) + '|' + (b.project_id || (b.project || '').trim().toLowerCase())))) { const m = k.split('|')[0]; perMonth[m] = (perMonth[m] || 0) + 1 }
       const [bm, bn] = Object.entries(perMonth).sort((a, b) => b[1] - a[1])[0]
-      out.push({ key: 'busy', n: bn, text: 'crew-dager i ' + new Date(year, Number(bm) - 1, 1).toLocaleDateString('nb-NO', { month: 'long' }) + ' – årets travleste måned', bg: '#FCEBEB', color: '#A32D2D' })
+      if (bn >= 2) out.push({ key: 'busy', n: bn, text: 'prosjekter med crew i ' + new Date(year, Number(bm) - 1, 1).toLocaleDateString('nb-NO', { month: 'long' }) + ' – årets travleste måned', bg: '#FCEBEB', color: '#A32D2D' })
       // Flest jobber
       const perCrew = {}
       for (const k of new Set(yb.map(jobKey))) { const id = k.split('|')[0]; perCrew[id] = (perCrew[id] || 0) + 1 }
       const top = Object.entries(perCrew).sort((a, b) => b[1] - a[1])[0]
       const tc = top && crew.find(c => c.id === top[0])
       if (tc && top[1] >= 2) out.push({ key: 'top', n: top[1], text: 'jobber for ' + tc.name.split(' ')[0] + ' – flest av alle i ' + year, bg: '#E1F5EE', color: '#0F6E56' })
-      // Helgejobber
-      const weekend = yb.filter(b => { const d = new Date(b.date + 'T12:00:00').getDay(); return d === 0 || d === 6 }).length
-      if (weekend) out.push({ key: 'weekend', n: weekend, text: 'crew-dager på lørdag eller søndag i ' + year, bg: '#E3EAF7', color: '#1B3A78' })
+      // Ulike personer som har jobbet i år
+      const people = new Set(yb.map(b => b.crew_id)).size
+      out.push({ key: 'people', n: people, text: 'ulike crew-medlemmer har jobbet i ' + year, bg: '#E3EAF7', color: '#1B3A78' })
     }
     const clients = new Set(yearProjects.map(p => (p.client || '').trim().toLowerCase()).filter(Boolean)).size
     if (clients) out.push({ key: 'clients', n: clients, text: 'ulike kunder med prosjekt i ' + year, bg: '#FAEEDA', color: '#854F0B' })
