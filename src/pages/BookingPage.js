@@ -62,6 +62,9 @@ export default function BookingPage({ user, isAdmin = false }) {
   const [editingNotes, setEditingNotes] = useState(false)
   const [notesInput, setNotesInput] = useState('')
   const [editingBirthdate, setEditingBirthdate] = useState(false)
+  const [editingContact, setEditingContact] = useState(false)
+  const [phoneInput, setPhoneInput] = useState('')
+  const [emailInput, setEmailInput] = useState('')
   const [birthdateInput, setBirthdateInput] = useState('')
   const [editingCategory, setEditingCategory] = useState(false)
   const [categoryInput, setCategoryInput] = useState('')
@@ -211,6 +214,9 @@ export default function BookingPage({ user, isAdmin = false }) {
     setNotesInput(c.notes || '')
     setEditingBirthdate(false)
     setBirthdateInput(c.birthdate || '')
+    setEditingContact(false)
+    setPhoneInput(c.phone || '')
+    setEmailInput(c.email || '')
     setOnboardingForm({
       has_contract: !!c.has_contract,
       has_office_key: !!c.has_office_key,
@@ -332,6 +338,8 @@ export default function BookingPage({ user, isAdmin = false }) {
     if (notesInput !== (c.notes || '')) return true
     if (locationInput !== (c.location || '')) return true
     if ((birthdateInput || '') !== (c.birthdate || '')) return true
+    if (phoneInput.trim() !== (c.phone || '')) return true
+    if (emailInput.trim() !== (c.email || '')) return true
     // Sjekkliste-felter
     const checklistFields = ['has_contract', 'has_office_key', 'has_warehouse_intro', 'has_sweater', 'has_tshirt']
     for (const f of checklistFields) {
@@ -399,6 +407,8 @@ export default function BookingPage({ user, isAdmin = false }) {
     if (notesInput !== (c.notes || '')) updates.notes = notesInput
     if (locationInput !== (c.location || '')) updates.location = locationInput
     if ((birthdateInput || '') !== (c.birthdate || '')) updates.birthdate = birthdateInput || null
+    if (phoneInput.trim() !== (c.phone || '')) updates.phone = phoneInput.trim()
+    if (emailInput.trim() !== (c.email || '')) updates.email = emailInput.trim()
     // Sjekkliste-felter
     const checklistFields = ['has_contract', 'has_office_key', 'has_warehouse_intro', 'has_sweater', 'has_tshirt']
     for (const f of checklistFields) {
@@ -496,6 +506,9 @@ export default function BookingPage({ user, isAdmin = false }) {
     setLocationInput(c.location || '')
     setBirthdateInput(c.birthdate || '')
     setNameInput(c.name)
+    setPhoneInput(c.phone || '')
+    setEmailInput(c.email || '')
+    setEditingContact(false)
     setOnboardingForm({
       has_contract: !!c.has_contract,
       has_office_key: !!c.has_office_key,
@@ -1004,6 +1017,33 @@ export default function BookingPage({ user, isAdmin = false }) {
                       {displayedIsNew ? '★ NY' : '+ NY'}
                     </button>
                   })()}
+                </div>
+
+                {/* Kontakt */}
+                <div style={{ ...s.msec, paddingTop: 10 }}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+                    <div style={s.msecHdr}>Kontakt</div>
+                    {!editingContact && <button style={s.editBtn} onClick={() => setEditingContact(true)}>Rediger</button>}
+                  </div>
+                  {editingContact ? (
+                    <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                      <div style={s.formRow2}>
+                        <div><label style={s.formLabel}>Telefon</label><input style={s.formInput} type="tel" value={phoneInput} onChange={e => setPhoneInput(e.target.value)} placeholder="99 99 99 99" autoFocus /></div>
+                        <div><label style={s.formLabel}>E-post</label><input style={s.formInput} type="email" value={emailInput} onChange={e => setEmailInput(e.target.value)} placeholder="navn@eksempel.no" /></div>
+                      </div>
+                      <div style={{display:'flex',gap:8}}>
+                        <button style={s.miniBtn} onClick={() => setEditingContact(false)}>Ferdig</button>
+                        <button style={s.clearBtn} onClick={() => { setPhoneInput(c.phone || ''); setEmailInput(c.email || ''); setEditingContact(false) }}>Avbryt</button>
+                      </div>
+                      <div style={{fontSize:11,color:'#888'}}>E-posten brukes til å koble crew-personen til sin egen innlogging.</div>
+                    </div>
+                  ) : (
+                    <div style={{display:'flex',gap:18,flexWrap:'wrap',fontSize:13}}>
+                      <span>📞 {phoneInput ? <a href={'tel:' + phoneInput.replace(/\s/g,'')} style={{color:'#1a1a18',textDecoration:'none'}}>{phoneInput}</a> : <span style={{color:'#aaa'}}>Ikke registrert</span>}</span>
+                      <span>✉️ {emailInput ? <a href={'mailto:' + emailInput} style={{color:'#1B3A78',textDecoration:'none'}}>{emailInput}</a> : <span style={{color:'#aaa'}}>Ikke registrert</span>}</span>
+                      {c.user_id && <span style={{fontSize:11,color:'#0F6E56',background:'#E1F5EE',padding:'2px 8px',borderRadius:10,fontWeight:600}}>Har innlogging</span>}
+                    </div>
+                  )}
                 </div>
 
                 {/* Editable bio */}
