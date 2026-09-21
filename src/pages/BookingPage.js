@@ -66,6 +66,7 @@ export default function BookingPage({ user, isAdmin = false }) {
   const [notesInput, setNotesInput] = useState('')
   const [editingBirthdate, setEditingBirthdate] = useState(false)
   const [editingContact, setEditingContact] = useState(false)
+  const [inviting, setInviting] = useState(false)
   const [phoneInput, setPhoneInput] = useState('')
   const [emailInput, setEmailInput] = useState('')
   const [birthdateInput, setBirthdateInput] = useState('')
@@ -754,6 +755,21 @@ export default function BookingPage({ user, isAdmin = false }) {
 
   const todayStr = dk(new Date())
 
+  async function sendInvite(c) {
+    setInviting(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/invite', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session?.access_token }, body: JSON.stringify({ crew_id: c.id }) })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) { showToast(json.error || 'Kunne ikke sende invitasjon'); return }
+      showToast('Invitasjon sendt til ' + json.email)
+      const now = new Date().toISOString()
+      setCrew(prev => prev.map(x => x.id === c.id ? { ...x, invited_at: now, invited_by: userName } : x))
+      setProfileOpen(prev => prev && prev.id === c.id ? { ...prev, invited_at: now, invited_by: userName } : prev)
+      loadCrew()
+    } finally { setInviting(false) }
+  }
+
   function openProject(p) {
     setView('projects')
     setFocusProject(p ? { id: p.id, n: Date.now() } : { id: null, n: Date.now() })
@@ -1069,7 +1085,16 @@ export default function BookingPage({ user, isAdmin = false }) {
                     <div style={{display:'flex',gap:18,flexWrap:'wrap',fontSize:13}}>
                       <span>📞 {phoneInput ? <a href={'tel:' + phoneInput.replace(/\s/g,'')} style={{color:'#1a1a18',textDecoration:'none'}}>{phoneInput}</a> : <span style={{color:'#aaa'}}>Ikke registrert</span>}</span>
                       <span>✉️ {emailInput ? <a href={'mailto:' + emailInput} style={{color:'#1B3A78',textDecoration:'none'}}>{emailInput}</a> : <span style={{color:'#aaa'}}>Ikke registrert</span>}</span>
-                      {c.user_id && <span style={{fontSize:11,color:'#0F6E56',background:'#E1F5EE',padding:'2px 8px',borderRadius:10,fontWeight:600}}>Har innlogging</span>}
+                      {(() => {
+                        const accepted = c.invite_accepted_at || (c.user_id && !c.invited_at)
+                        if (accepted) return <span style={{fontSize:11,color:'#0F6E56',background:'#E1F5EE',padding:'2px 8px',borderRadius:10,fontWeight:600}}>Har innlogging</span>
+                        return <span style={{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap'}}>
+                          {c.invited_at && <span style={{fontSize:11,color:'#854F0B',background:'#FAEEDA',padding:'2px 8px',borderRadius:10,fontWeight:600}} title={c.invited_by ? 'Invitert av ' + c.invited_by : ''}>Invitert {new Date(c.invited_at).toLocaleDateString('nb-NO',{day:'numeric',month:'short'})}</span>}
+                          <button style={{...s.miniBtn,...(c.invited_at ? {} : {background:'#1B3A78',color:'#fff',border:'none'})}} disabled={inviting || !emailInput} title={!emailInput ? 'Legg inn e-post først' : ''} onClick={() => sendInvite(c)}>
+                            {inviting ? 'Sender…' : c.invited_at ? 'Send på nytt' : '✉️ Send invitasjon'}
+                          </button>
+                        </span>
+                      })()}
                     </div>
                   )}
                 </div>

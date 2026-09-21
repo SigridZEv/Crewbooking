@@ -18,12 +18,20 @@ export default function Login() {
   const [error, setError] = useState('')
   const [mode, setMode] = useState('login')
   const [signedUpEmail, setSignedUpEmail] = useState('')
+  const [resetSent, setResetSent] = useState(false)
 
   async function handleSubmit(e) {
     e.preventDefault()
     setLoading(true)
     setError('')
     let result
+    if (mode === 'reset') {
+      result = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin })
+      if (result.error) setError(friendlyError(result.error.message))
+      else setResetSent(true)
+      setLoading(false)
+      return
+    }
     if (mode === 'login') {
       result = await supabase.auth.signInWithPassword({ email, password })
       if (result.error) setError(friendlyError(result.error.message))
@@ -58,13 +66,25 @@ export default function Login() {
           <div style={{ fontSize: 11, fontWeight: 700, color: '#1B3A78', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 6 }}>Z Event</div>
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: '0 0 6px', color: '#1A1B2E', letterSpacing: '-0.02em' }}>Crew Portal</h1>
           <p style={{ fontSize: 14, color: '#6B7280', margin: 0, lineHeight: 1.5 }}>
-            {mode === 'login'
-              ? 'Logg inn med e-post og passord'
+            {mode === 'login' ? 'Logg inn med e-post og passord'
+              : mode === 'reset' ? 'Skriv inn e-posten din, så sender vi deg en lenke for å velge nytt passord.'
               : 'Bruk e-postadressen Z Event har registrert på deg, så kobles kontoen automatisk til profilen din.'}
           </p>
         </div>
 
-        {signedUpEmail ? (
+        {resetSent ? (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>✉️</div>
+            <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 10px', color: '#1A1B2E' }}>Sjekk e-posten din</h2>
+            <p style={{ fontSize: 14, color: '#374151', lineHeight: 1.6, margin: '0 0 20px' }}>
+              Hvis <strong>{email}</strong> har en konto, har vi sendt en lenke for å velge nytt passord. Sjekk også søppelpost.
+            </p>
+            <button
+              style={{ width: '100%', padding: '12px', fontSize: 14, fontWeight: 700, borderRadius: 9, border: 'none', background: 'linear-gradient(135deg, #1B3A78, #3D9CBA)', color: '#fff', cursor: 'pointer', fontFamily: "'Avenir', 'Avenir Next', 'Century Gothic', 'Nunito', sans-serif" }}
+              onClick={() => { setResetSent(false); setMode('login') }}
+            >Til innlogging</button>
+          </div>
+        ) : signedUpEmail ? (
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>✉️</div>
             <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 10px', color: '#1A1B2E' }}>Sjekk e-posten din</h2>
@@ -93,7 +113,7 @@ export default function Login() {
             type="email" value={email} onChange={e => setEmail(e.target.value)}
             placeholder={mode === 'login' ? 'navn@zevent.no' : 'din@epost.no'} required
           />
-          <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#6B7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Passord</label>
+          {mode !== 'reset' && <><label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#6B7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Passord</label>
           <input
             style={{
               width: '100%', padding: '11px 14px', fontSize: 14,
@@ -103,7 +123,10 @@ export default function Login() {
             }}
             type="password" value={password} onChange={e => setPassword(e.target.value)}
             placeholder="••••••••" required
-          />
+          /></>}
+          {mode === 'login' && <div style={{ textAlign: 'right', marginTop: 2 }}>
+            <button type="button" onClick={() => { setMode('reset'); setError('') }} style={{ background: 'none', border: 'none', color: '#6B7280', cursor: 'pointer', fontSize: 12, fontFamily: "'Avenir', 'Avenir Next', 'Century Gothic', 'Nunito', sans-serif" }}>Glemt passord?</button>
+          </div>}
           {error && <p style={{ fontSize: 13, color: '#C92A2A', margin: '6px 0 10px', background: '#FFF0F0', padding: '8px 12px', borderRadius: 7 }}>{error}</p>}
           <button
             style={{
@@ -116,12 +139,12 @@ export default function Login() {
             }}
             type="submit" disabled={loading}
           >
-            {loading ? 'Laster…' : mode === 'login' ? 'Logg inn' : 'Opprett konto'}
+            {loading ? 'Laster…' : mode === 'login' ? 'Logg inn' : mode === 'reset' ? 'Send lenke' : 'Opprett konto'}
           </button>
         </form>
         )}
 
-        {!signedUpEmail && <p style={{ marginTop: 20, fontSize: 13, color: '#6B7280', textAlign: 'center' }}>
+        {!signedUpEmail && !resetSent && <p style={{ marginTop: 20, fontSize: 13, color: '#6B7280', textAlign: 'center' }}>
           {mode === 'login' ? 'Ny bruker? ' : 'Har du konto? '}
           <button
             style={{ background: 'none', border: 'none', color: '#1B3A78', cursor: 'pointer', fontSize: 13, fontFamily: "'Avenir', 'Avenir Next', 'Century Gothic', 'Nunito', sans-serif", fontWeight: 600 }}

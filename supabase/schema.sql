@@ -166,6 +166,11 @@ $$;
 alter table crew add column if not exists user_id uuid references auth.users(id) on delete set null;
 create unique index if not exists crew_user_id_unique on crew(user_id) where user_id is not null;
 
+-- Invitasjoner: når/hvem sendte, og når personen fullførte oppsettet (satte passord).
+alter table crew add column if not exists invited_at timestamptz;
+alter table crew add column if not exists invited_by text;
+alter table crew add column if not exists invite_accepted_at timestamptz;
+
 -- Hjelpefunksjoner (security definer så de kan leses uavhengig av RLS).
 -- is_admin  = kun admin (timepris, roller)
 -- is_staff  = admin eller prosjektleder (alt annet i portalen)
@@ -293,6 +298,8 @@ begin
     new.has_tshirt := old.has_tshirt;
     new.user_id := old.user_id;
     new.created_at := old.created_at;
+    new.invited_at := old.invited_at;
+    new.invited_by := old.invited_by;
   end if;
   return new;
 end;
