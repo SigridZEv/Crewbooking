@@ -764,12 +764,11 @@ export default function BookingPage({ user, isAdmin = false }) {
     crew: crew.filter(c => c.name.toLowerCase().includes(gq) || (c.category || '').toLowerCase().includes(gq)).slice(0, 5),
     projects: projects.filter(p => projectLabel(p).toLowerCase().includes(gq) || (p.client || '').toLowerCase().includes(gq)).sort((a, b) => (b.start_date || '').localeCompare(a.start_date || '')).slice(0, 5),
   } : null
-  const noLoginCount = crew.filter(c => !c.user_id).length
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: s.page.fontFamily, color: '#1a1a18' }}>
       <Sidebar view={view} setView={v => { setView(v); setGlobalQ('') }} userName={userName} roleLabel={isAdmin ? 'Admin' : 'Prosjektleder'}
-        badges={{ crew: noLoginCount }} onMyProfile={() => setMyProfileOpen(true)} onLogout={logout} mobile={isMobile} />
+        onMyProfile={() => setMyProfileOpen(true)} onLogout={logout} mobile={isMobile} />
 
       <div style={{ ...s.page, flex: 1, minWidth: 0, maxWidth: 'none', minHeight: 'auto', padding: isMobile ? '1rem 1rem 5rem' : '1.5rem 2rem' }}>
       {/* Toppfelt: global søk */}
