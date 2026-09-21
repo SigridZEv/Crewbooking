@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { COLORS, ALLERGIES, STATUS } from '../lib/constants'
-import { getMonthDates, fmtMonth, dk } from '../lib/dateUtils'
+import { getMonthDates, fmtMonth, dk, holidayName } from '../lib/dateUtils'
 import { s } from '../lib/styles'
 
 // Siden crew-medlemmer ser når de logger inn.
@@ -203,12 +203,13 @@ export default function CrewPage({ user, initialCrew }) {
             const isToday = dateStr === todayStr
             const dow = d.getDay()
             const weekend = dow === 0 || dow === 6
+            const holiday = holidayName(dateStr)
             return (
               <button
                 key={dateStr}
                 disabled={isPast || busyDate === dateStr}
                 onClick={() => toggleUnavailable(dateStr)}
-                title={locked ? `${cfg.full}${b.project ? ' — ' + b.project : ''}` : (st === 'unavailable' ? 'Trykk for å bli ledig igjen' : 'Trykk for å markere som ikke tilgjengelig')}
+                title={(holiday ? holiday + ' · ' : '') + (locked ? `${cfg.full}${b.project ? ' — ' + b.project : ''}` : (st === 'unavailable' ? 'Trykk for å bli ledig igjen' : 'Trykk for å markere som ikke tilgjengelig'))}
                 style={{
                   ...dayBtn,
                   background: cfg.bg,
@@ -218,11 +219,12 @@ export default function CrewPage({ user, initialCrew }) {
                   outline: isToday ? '2px solid #1B3A78' : 'none',
                   outlineOffset: -2,
                   fontWeight: weekend ? 400 : 600,
+                  boxShadow: holiday ? 'inset 0 0 0 1.5px #E5A0A0' : 'none',
                 }}
               >
-                <span style={{ fontSize: 13 }}>{d.getDate()}</span>
+                <span style={{ fontSize: 13, color: holiday && st === 'free' ? '#A32D2D' : undefined }}>{d.getDate()}</span>
                 <span style={{ fontSize: 9, lineHeight: 1.1, marginTop: 2, textAlign: 'center' }}>
-                  {locked ? (b.project ? b.project : cfg.short) : (st === 'unavailable' ? 'Borte' : '')}
+                  {locked ? (b.project ? b.project : cfg.short) : (st === 'unavailable' ? 'Borte' : (holiday ? <span style={{ color: '#A32D2D' }}>{holiday}</span> : ''))}
                 </span>
               </button>
             )
