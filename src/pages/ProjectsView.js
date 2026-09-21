@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { COLORS, STATUS } from '../lib/constants'
-import { getMonthDates, getWeekDates, fmtMonth, fmtDay, dk } from '../lib/dateUtils'
+import { getMonthDates, getWeekDates, fmtMonth, fmtDay, dk, holidayName } from '../lib/dateUtils'
 import { s } from '../lib/styles'
 
 // Prosjektkalender: én strek per prosjekt over dagene det varer (som heldags-
@@ -391,11 +391,11 @@ export default function ProjectsView({ projects, crew, onProjectsChanged, onBook
           {/* Header */}
           <div style={{ ...hdrCell, textAlign: 'left', paddingLeft: 12, position: 'sticky', left: 0, background: '#fff', zIndex: 2 }}>Prosjekt</div>
           {days.map(d => {
-            const ds = dk(d); const dow = d.getDay(); const we = dow === 0 || dow === 6; const today = ds === todayStr
-            return <div key={ds} style={{ ...hdrCell, ...(we ? { background: '#FAF8F4', color: '#A09A8E' } : {}), ...(today ? { color: '#1B3A78', fontWeight: 700, background: '#F0F6FF' } : {}) }}>
-              {calMode === 'week' ? <div style={{ fontSize: 12, padding: '4px 0' }}>{fmtDay(d)}</div> : <>
+            const ds = dk(d); const dow = d.getDay(); const we = dow === 0 || dow === 6; const today = ds === todayStr; const holiday = holidayName(ds)
+            return <div key={ds} title={holiday || undefined} style={{ ...hdrCell, ...(we ? { background: '#FAF8F4', color: '#A09A8E' } : {}), ...(holiday ? s.holidayHeader : {}), ...(today ? { color: '#1B3A78', fontWeight: 700, background: '#F0F6FF' } : {}) }}>
+              {calMode === 'week' ? <div style={{ fontSize: 12, padding: '4px 0' }}>{fmtDay(d)}{holiday && <div style={{ fontSize: 9, fontWeight: 600 }}>{holiday}</div>}</div> : <>
                 <div style={{ fontSize: 9, textTransform: 'uppercase' }}>{WEEKDAY_SHORT[dow]}</div>
-                <div>{d.getDate()}</div>
+                <div>{d.getDate()}{holiday && <span style={s.holidayDot} />}</div>
               </>}
             </div>
           })}
@@ -418,8 +418,8 @@ export default function ProjectsView({ projects, crew, onProjectsChanged, onBook
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.name}>{r.name}</span>
               </div>
               {days.map((d, di) => {
-                const dow = d.getDay(); const we = dow === 0 || dow === 6
-                return <div key={r.key + '_' + di} style={{ gridRow: row, gridColumn: di + 2, borderBottom: '0.5px solid #f0efe9', borderLeft: '0.5px solid #f0efe9', background: we ? '#FBFAF6' : (isSel ? '#F7FAFF' : 'transparent'), minHeight: 40 }} />
+                const dow = d.getDay(); const we = dow === 0 || dow === 6; const hol = !!holidayName(dk(d))
+                return <div key={r.key + '_' + di} style={{ gridRow: row, gridColumn: di + 2, borderBottom: '0.5px solid #f0efe9', borderLeft: '0.5px solid #f0efe9', background: hol ? '#FDF3F3' : we ? '#FBFAF6' : (isSel ? '#F7FAFF' : 'transparent'), minHeight: 40 }} />
               })}
               <button key={r.key + '_bar'} onClick={() => openPanel(r.key)} title={r.name + ' · ' + r.count + ' crew'} style={{
                 gridRow: row, gridColumn: `${startIdx + 2} / ${endIdx + 3}`, alignSelf: 'center', margin: '0 2px', height: calMode === 'week' ? 32 : 26,
@@ -438,7 +438,7 @@ export default function ProjectsView({ projects, crew, onProjectsChanged, onBook
       </div>}
       {!isList && <div style={{ ...s.legend, marginTop: 10 }}>
         <span style={s.legendItem}><span style={{ ...s.dot, background: 'transparent', border: '1.5px dashed #1B3A78' }} />Stiplet = Pending i Qondor</span>
-        <span style={s.legendItem}><span style={{ ...s.dot, background: '#E9E7E0', border: '1px solid #999' }} />Grå = fritekst-prosjekt (ikke i prosjektlisten enda)</span>
+        <span style={s.legendItem}><span style={{ ...s.dot, background: '#E9E7E0', border: '1px solid #999' }} />Grå = fritekst-prosjekt (ikke i prosjektlisten enda)</span> <span style={s.legendItem}><span style={{ ...s.dot, background: '#FCEBEB', border: '1px solid #A32D2D' }} />Helligdag</span>
       </div>}
 
       {/* Sidepanel */}
@@ -569,7 +569,7 @@ export default function ProjectsView({ projects, crew, onProjectsChanged, onBook
                               const checked = bookDays.includes(d)
                               return <label key={d} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, padding: '3px 2px', cursor: conf?.hard ? 'not-allowed' : 'pointer', opacity: conf?.hard ? 0.55 : 1 }}>
                                 <input type="checkbox" checked={checked} disabled={!!conf?.hard} onChange={e => setBookDays(prev => e.target.checked ? [...prev, d].sort() : prev.filter(x => x !== d))} />
-                                <span style={{ flex: 1 }}>{capFirst(fmtDateShort(d))}</span>
+                                <span style={{ flex: 1 }}>{capFirst(fmtDateShort(d))}{holidayName(d) && <span style={{ fontSize: 10, color: '#A32D2D', marginLeft: 6 }}>{holidayName(d)}</span>}</span>
                                 {conf?.own && <span style={{ fontSize: 10, color: '#0F6E56', background: '#E1F5EE', padding: '1px 7px', borderRadius: 10, fontWeight: 600 }}>Allerede på prosjektet</span>}
                                 {conf?.text && <span style={{ fontSize: 10, color: conf.hard ? '#A32D2D' : '#854F0B', background: conf.hard ? '#FCEBEB' : '#FAEEDA', padding: '1px 7px', borderRadius: 10, fontWeight: 600, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={conf.text}>{conf.text}</span>}
                               </label>

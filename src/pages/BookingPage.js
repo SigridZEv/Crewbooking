@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { COLORS, ALLERGIES, STATUS, CATEGORIES } from '../lib/constants'
-import { getWeekDates, fmtDay, dk, getMonthDates, fmtMonth } from '../lib/dateUtils'
+import { getWeekDates, fmtDay, dk, getMonthDates, fmtMonth, holidayName } from '../lib/dateUtils'
 import { s } from '../lib/styles'
 import ProjectsView, { projectLabel } from './ProjectsView'
 import OverviewView from './OverviewView'
@@ -866,6 +866,7 @@ export default function BookingPage({ user, isAdmin = false }) {
           </div>
           <div style={s.legend}>
             {Object.entries(STATUS).map(([k,v]) => <span key={k} style={s.legendItem}><span style={{...s.dot,background:v.bg,border:'1px solid '+v.c}}/>{v.full}</span>)}
+            <span style={s.legendItem}><span style={{...s.dot,background:'#FCEBEB',border:'1px solid #A32D2D'}}/>Helligdag</span>
           </div>
           <div style={s.tableWrap}>
             <table style={s.table}>
@@ -876,18 +877,25 @@ export default function BookingPage({ user, isAdmin = false }) {
                   const dow = d.getDay() // 0=Sun, 6=Sat
                   const isWeekend = dow === 0 || dow === 6
                   const isToday = dStr === todayStr
-                  return <th key={dStr} style={{
+                  const holiday = holidayName(dStr)
+                  return <th key={dStr} title={holiday || undefined} style={{
                     ...s.th,
                     ...(calMode === 'month' ? {minWidth:30, padding:'6px 2px', fontSize:10} : {}),
                     ...(isWeekend ? s.weekendHeader : {}),
+                    ...(holiday ? s.holidayHeader : {}),
                     ...(isToday ? s.todayHeader : {}),
                     ...(filterDay===dStr ? {background:'#f0f7ff'} : {}),
                   }}>{calMode === 'month' ? (
                     <div style={{display:'flex',flexDirection:'column',alignItems:'center',lineHeight:1.15}}>
                       <span style={{fontSize:9,textTransform:'uppercase',letterSpacing:'0.02em'}}>{['sø','ma','ti','on','to','fr','lø'][dow]}</span>
-                      <span style={{fontSize:11}}>{d.getDate()}</span>
+                      <span style={{fontSize:11}}>{d.getDate()}{holiday && <span style={s.holidayDot} />}</span>
                     </div>
-                  ) : fmtDay(d)}</th>
+                  ) : (
+                    <div style={{display:'flex',flexDirection:'column',alignItems:'center',lineHeight:1.2}}>
+                      <span>{fmtDay(d)}</span>
+                      {holiday && <span style={{fontSize:9,fontWeight:600,textTransform:'none',letterSpacing:0}}>{holiday}</span>}
+                    </div>
+                  )}</th>
                 })}
               </tr></thead>
               <tbody>
@@ -914,6 +922,7 @@ export default function BookingPage({ user, isAdmin = false }) {
                         ...s.dayCell,
                         ...(calMode === 'month' ? {minWidth:30, padding:'4px 2px'} : {}),
                         ...(isWeekend ? s.weekendCell : {}),
+                        ...(holidayName(date) ? s.holidayCell : {}),
                         ...(isToday ? s.todayCell : {}),
                         ...(isHighlighted ? {background:'#f0f7ff'} : {}),
                       }}>
