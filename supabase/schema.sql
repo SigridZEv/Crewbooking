@@ -143,7 +143,7 @@ create table if not exists crew_comments (
 -- ============================================================
 -- user_profiles.role styrer hva en innlogget bruker får se.
 --   admin = full tilgang, inkl. timepris og roller (kun ADMIN_EMAILS under)
---   pl    = prosjektleder (@zevent.no) — alt unntatt å endre timepris
+--   pl    = prosjektleder (@zevent.no og @dsdexplore.no) — alt unntatt å endre timepris
 --   crew  = crew-medlem — ser bare egne bookinger og egen profil
 alter table user_profiles add column if not exists role text default 'crew';
 alter table user_profiles drop constraint if exists user_profiles_role_check;
@@ -157,7 +157,7 @@ immutable
 as $$
   select case
     when lower(p_email) in ('martine.ingeberg@zevent.no', 'sigrid@zevent.no') then 'admin'
-    when lower(p_email) like '%@zevent.no' then 'pl'
+    when lower(p_email) like '%@zevent.no' or lower(p_email) like '%@dsdexplore.no' then 'pl'
     else 'crew'
   end;
 $$;
@@ -345,7 +345,7 @@ update crew c
  where c.user_id is null
    and c.email <> ''
    and lower(trim(c.email)) = lower(u.email)
-   and lower(u.email) not like '%@zevent.no'
+   and role_for_email(u.email) = 'crew'
    and not exists (select 1 from crew c2 where c2.user_id = u.id);
 
 -- ============================================================
