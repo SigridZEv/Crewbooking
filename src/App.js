@@ -5,11 +5,12 @@ import BookingPage from './pages/BookingPage'
 import CrewPage from './pages/CrewPage'
 import NoAccess from './pages/NoAccess'
 
-// Reserve hvis profilen ikke finnes enda: @zevent.no behandles som prosjektleder.
+// Reserve hvis profilen ikke finnes enda: @zevent.no og @dsdexplore.no behandles som prosjektleder.
 // Selve tilgangen (og hvem som er admin) håndheves alltid av databasen (RLS),
 // ikke av denne sjekken — se role_for_email i schema.sql.
 function isZeventEmail(email) {
-  return (email || '').toLowerCase().endsWith('@zevent.no')
+  const e = (email || '').toLowerCase()
+  return e.endsWith('@zevent.no') || e.endsWith('@dsdexplore.no')
 }
 
 export default function App() {
