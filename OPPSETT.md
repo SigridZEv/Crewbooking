@@ -87,7 +87,7 @@ Portalen har tre typer brukere:
 
 | Rolle | Hvem | Hva de kan |
 |---|---|---|
-| **Admin** | Martine og Sigrid (listen `role_for_email` i schema.sql) | Alt, inkludert endre timepris og roller |
+| **Admin** | Martine, Sigrid og Kaja (listen `role_for_email` i schema.sql) | Alt, inkludert endre timepris og roller |
 | **Prosjektleder** | Alle andre med @zevent.no eller @dsdexplore.no | Alt i portalen, men kan ikke endre timepris |
 | **Crew** | Alle andre | Kun egen side: «Mine jobber», «Min tilgjengelighet», «Mine opplysninger» |
 
