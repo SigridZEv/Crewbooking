@@ -156,7 +156,7 @@ language sql
 immutable
 as $$
   select case
-    when lower(p_email) in ('martine.ingeberg@zevent.no', 'sigrid@zevent.no', 'kaja@zevent.no') then 'admin'
+    when lower(p_email) in ('martine.ingeberg@zevent.no', 'sigrid@zevent.no', 'kaja@zevent.no', 'kjetil@dsdexplore.no', 'matias@zevent.no') then 'admin'
     when lower(p_email) like '%@zevent.no' or lower(p_email) like '%@dsdexplore.no' then 'pl'
     else 'crew'
   end;
