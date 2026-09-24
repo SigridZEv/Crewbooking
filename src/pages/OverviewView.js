@@ -77,12 +77,6 @@ export default function OverviewView({ projects, crew, openProfile, openProject,
       for (const k of new Set(yb.map(b => b.date.slice(5, 7) + '|' + (b.project_id || (b.project || '').trim().toLowerCase())))) { const m = k.split('|')[0]; perMonth[m] = (perMonth[m] || 0) + 1 }
       const [bm, bn] = Object.entries(perMonth).sort((a, b) => b[1] - a[1])[0]
       if (bn >= 2) out.push({ key: 'busy', n: bn, text: 'prosjekter med crew i ' + new Date(year, Number(bm) - 1, 1).toLocaleDateString('nb-NO', { month: 'long' }) + ' – årets travleste måned', bg: '#FCEBEB', color: '#A32D2D' })
-      // Flest jobber
-      const perCrew = {}
-      for (const k of new Set(yb.map(jobKey))) { const id = k.split('|')[0]; perCrew[id] = (perCrew[id] || 0) + 1 }
-      const top = Object.entries(perCrew).sort((a, b) => b[1] - a[1])[0]
-      const tc = top && crew.find(c => c.id === top[0])
-      if (tc && top[1] >= 2) out.push({ key: 'top', n: top[1], text: 'jobber for ' + tc.name.split(' ')[0] + ' – flest av alle i ' + year, bg: '#E1F5EE', color: '#0F6E56' })
       // Ulike personer som har jobbet i år
       const people = new Set(yb.map(b => b.crew_id)).size
       out.push({ key: 'people', n: people, text: 'ulike crew-medlemmer har jobbet i ' + year, bg: '#E3EAF7', color: '#1B3A78' })
